@@ -28,11 +28,17 @@ export default function ShopPage({ slug }: { slug: string }) {
           .from("shops")
           .select("*")
           .eq("subdomain", slug)
-          .eq("status", "active")
           .maybeSingle();
 
         if (shopErr) throw shopErr;
         if (!shopData) {
+          setIsNotFound(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Suspended shops show not-found
+        if (shopData.status === "suspended") {
           setIsNotFound(true);
           setIsLoading(false);
           return;
@@ -91,8 +97,8 @@ export default function ShopPage({ slug }: { slug: string }) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background p-6 text-center">
         <AlertCircle className="w-16 h-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Shop not found</h1>
-        <p className="text-muted-foreground mb-8">This shop might be pending review or doesn't exist.</p>
+        <h1 className="text-2xl font-bold mb-2">Shop not available</h1>
+        <p className="text-muted-foreground mb-8">This shop doesn't exist or has been suspended.</p>
         <Button onClick={() => setLocation("/")} className="rounded-full">Create your own store</Button>
       </div>
     );
@@ -100,8 +106,19 @@ export default function ShopPage({ slug }: { slug: string }) {
 
   if (!shop) return null;
 
+  const isPending = shop.status === "pending";
+
   return (
     <div className="min-h-[100dvh] bg-background">
+      {isPending && (
+        <div className="bg-amber-500 text-white text-center py-3 px-4 text-sm font-medium flex items-center justify-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>
+            This store is <strong>pending review</strong> and is only visible to you as a preview.
+            Go to <a href="/admin" className="underline font-bold">Admin Panel</a> to approve it.
+          </span>
+        </div>
+      )}
       <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 pb-24 space-y-12">
         {/* Header */}
         <header className="text-center space-y-4">

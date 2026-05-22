@@ -286,6 +286,29 @@ export default function DashboardPage() {
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className="space-y-6">
+            {shop.status === "pending" && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5 flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex-1">
+                  <p className="font-bold text-amber-800 mb-1">Your store is pending approval</p>
+                  <p className="text-sm text-amber-700">
+                    To make your store live, go to the Admin Panel and click <strong>Approve</strong> next to your store. 
+                    Your store URL is: <span className="font-mono font-bold">{shop.subdomain}.shopsite.in</span>
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <a href={`/?shop=${shop.subdomain}`} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm" className="rounded-full border-amber-400 text-amber-800 hover:bg-amber-100">
+                      Preview store
+                    </Button>
+                  </a>
+                  <a href="/admin">
+                    <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white">
+                      Go to Admin Panel
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="col-span-2">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Store Link</CardTitle></CardHeader>
