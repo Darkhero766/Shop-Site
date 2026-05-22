@@ -1,45 +1,67 @@
-# [Project name]
+# Shopy
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A multi-tenant SaaS platform for Indian Instagram micro-sellers to create their own storefront with a unique subdomain, upload products, accept UPI payments, and collect verified buyer reviews.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/shopy run dev` — run the frontend (auto-started via workflow)
+- `pnpm --filter @workspace/shopy run typecheck` — typecheck the frontend
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080, minimal usage)
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React + Vite + TypeScript + Tailwind CSS + shadcn/ui
+- Backend/DB/Auth/Storage: Supabase (PostgreSQL + Auth + Storage)
+- Routing: Wouter (with subdomain detection logic)
+- Forms: react-hook-form + zod
+- Notifications: Sonner toasts + WhatsApp deep links
+- Image carousel: embla-carousel-react
+- Bottom sheet: vaul Drawer
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/shopy/src/` — entire frontend application
+- `artifacts/shopy/src/lib/supabase.ts` — Supabase client, types, helpers
+- `artifacts/shopy/src/pages/` — all pages (HomePage, JoinPage, ShopPage, DashboardPage, AdminPage, LoginPage)
+- `artifacts/shopy/src/components/` — shared components (ProductCard, ProductDrawer, ReviewSection, UTRForm, StarRating, SkeletonGrid, ImageUpload)
+- `artifacts/shopy/src/index.css` — full design system / theme (purple primary #7C3AED, emerald accent #10B981)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Supabase-only backend**: No Express API routes needed. All data ops (auth, CRUD, storage uploads) go directly from the React frontend to Supabase using the anon key + RLS policies.
+- **Subdomain routing**: `getSubdomainFromHost()` in `src/lib/supabase.ts` parses `window.location.hostname`. If a subdomain is found, `App.tsx` renders `<ShopPage slug={...} />` instead of the normal router. Use `?shop=slug` query param for local dev testing.
+- **No payment gateway**: UPI QR + UTR verification is the payment flow. Buyers scan QR, pay, submit 12-digit UTR, seller confirms.
+- **Review gating**: Reviews require a valid UTR that matches an existing order for that shop and has no review yet.
+- **Admin by email**: Admin panel checks `user.email === import.meta.env.VITE_ADMIN_EMAIL` client-side.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Homepage** (`/`): Marketing page with hero, features, how-it-works
+- **Seller Signup** (`/join`): 3-step form — basic info + subdomain availability check, products & UPI QR upload, preview & launch
+- **Shop Page** (subdomain): Public storefront — product grid, product drawer with image carousel, UPI payment section, UTR order form, verified reviews
+- **Seller Dashboard** (`/dashboard`): Overview stats, products CRUD, orders confirm/decline, reviews view, settings
+- **Admin Panel** (`/admin`): Approve/suspend shops, view stats (admin email gated)
+- **Login** (`/login`): Supabase email+password auth
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Tech stack locked: React + Vite + Supabase + Tailwind + shadcn/ui
+- No payment gateway (UPI QR only)
+- No SSR, static-export friendly (Vercel target)
+- WhatsApp deep links only (no external notification APIs)
+- Currency always ₹, integer only
+- UTR always 12 digits numeric
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Supabase tables must have RLS enabled with correct policies before the app works end-to-end
+- Supabase Storage buckets needed: `product-images` and `upi-qr` (both public read, authenticated write)
+- The SQL schema must be run in Supabase SQL editor — see original spec for 4 tables: shops, products, orders, reviews
+- Subdomain detection won't work on Replit preview (same domain) — use `?shop=subdomain` for local testing
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ADMIN_EMAIL` must be set as secrets
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Supabase SQL schema: run in Supabase dashboard → SQL Editor
