@@ -310,7 +310,7 @@ export default function JoinPage() {
                     <h2 className="text-xl font-semibold">Payment Details</h2>
                     <div className="grid md:grid-cols-2 gap-8">
                       <div>
-                        <FormLabel className="block mb-2">UPI QR Code</FormLabel>
+                        <label className="block text-sm font-medium mb-2">UPI QR Code</label>
                         <ImageUpload onUpload={handleQrUpload} previewUrl={qrPreview} label="Upload QR Image" dataTestId="upload-qr" />
                       </div>
                       <div className="space-y-4">
