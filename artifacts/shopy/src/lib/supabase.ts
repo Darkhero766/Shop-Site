@@ -99,14 +99,18 @@ export async function uploadImage(
 }
 
 export function getSubdomainFromHost(): string | null {
+  // Only activate subdomain routing on the real production domain
   const hostname = window.location.hostname;
-  const parts = hostname.split(".");
-  const isSubdomain =
-    parts.length >= 3 ||
-    (hostname !== "localhost" && !hostname.startsWith("www"));
-  if (isSubdomain && parts[0] !== "www") {
-    return parts[0];
+  const PRODUCTION_ROOT = "shopsite.in";
+
+  if (hostname.endsWith(`.${PRODUCTION_ROOT}`)) {
+    const subdomain = hostname.slice(0, hostname.length - PRODUCTION_ROOT.length - 1);
+    if (subdomain && subdomain !== "www" && subdomain !== "app") {
+      return subdomain;
+    }
   }
+
+  // Fallback for local dev testing: ?shop=slug
   const params = new URLSearchParams(window.location.search);
   return params.get("shop");
 }
