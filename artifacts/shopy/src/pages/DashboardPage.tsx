@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   // Product form state
   const [showProductForm, setShowProductForm] = useState(false);
@@ -52,6 +53,7 @@ export default function DashboardPage() {
     async function loadData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLocation("/login"); return; }
+      setUserEmail(user.email ?? "");
 
       try {
         const { data: shopData } = await supabase.from("shops").select("*").eq("email", user.email).maybeSingle();
@@ -294,8 +296,10 @@ export default function DashboardPage() {
                 <div className="flex-1">
                   <p className="font-bold text-amber-800 mb-1">Your store is pending approval</p>
                   <p className="text-sm text-amber-700">
-                    To make your store live, go to the Admin Panel and click <strong>Approve</strong> next to your store. 
-                    Your store URL is: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span>
+                    {userEmail === import.meta.env.VITE_ADMIN_EMAIL
+                      ? <>You are the admin — go to the Admin Panel and click <strong>Approve</strong> next to this store. URL: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span></>
+                      : <>Your store is under review. An admin will activate it shortly. Your future URL: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span></>
+                    }
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -304,11 +308,13 @@ export default function DashboardPage() {
                       Preview store
                     </Button>
                   </a>
-                  <a href="/admin">
-                    <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white">
-                      Go to Admin Panel
-                    </Button>
-                  </a>
+                  {userEmail === import.meta.env.VITE_ADMIN_EMAIL && (
+                    <a href="/admin">
+                      <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white">
+                        Go to Admin Panel
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </div>
             )}
