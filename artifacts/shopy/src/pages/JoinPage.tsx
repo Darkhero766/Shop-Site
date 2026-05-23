@@ -143,15 +143,21 @@ export default function JoinPage() {
       const s1 = form1.getValues();
       const s2 = form2.getValues();
 
-      // 1. Auth
-      const { error: authErr } = await supabase.auth.signUp({ email: s1.email, password: s1.password });
+      // 1. Auth — sign up, then ensure we have an active session for storage uploads
+      const { data: authData, error: authErr } = await supabase.auth.signUp({ email: s1.email, password: s1.password });
       if (authErr) throw authErr;
+      if (!authData.session) {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email: s1.email, password: s1.password });
+        if (signInErr) throw new Error("Account created but couldn't sign in automatically. Please verify your email then log in.");
+      }
 
       // 2. Upload QR
       let qrUrl: string | null = null;
       if (qrFile) {
         const path = `${s1.subdomain}/${Date.now()}_qr`;
-        qrUrl = await uploadImage("upi-qr", qrFile, path);
+        const { url: uploadedQr, error: qrErr } = await uploadImage("upi-qr", qrFile, path);
+        if (qrErr) toast.error(`QR upload failed: ${qrErr}. You can re-upload from Settings.`);
+        qrUrl = uploadedQr;
       }
 
       // 3. Create Shop
@@ -180,7 +186,8 @@ export default function JoinPage() {
             const file = files[i];
             if (file) {
               const path = `${s1.subdomain}/${Date.now()}_${idx}_${i}`;
-              const url = await uploadImage("product-images", file, path);
+              const { url, error: imgErr } = await uploadImage("product-images", file, path);
+              if (imgErr) toast.error(`Image upload failed: ${imgErr}`);
               if (url) imageUrls.push(url);
             }
           }
