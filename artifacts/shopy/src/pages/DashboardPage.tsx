@@ -150,7 +150,7 @@ export default function DashboardPage() {
         const file = productImageFiles[i];
         if (file) {
           const path = `${shop.subdomain}/${Date.now()}_${i}`;
-          const { url, error: uploadErr } = await uploadImage("product-images", file, path);
+          const { url, error: uploadErr } = await uploadImage("Product-images", file, path);
           if (uploadErr) toast.error(`Image upload failed: ${uploadErr}`);
           if (url) newUrls.push(url);
         }
@@ -205,7 +205,7 @@ export default function DashboardPage() {
       let qrUrl = shop.upi_qr_url;
       if (settingsQrFile) {
         const path = `${shop.subdomain}/${Date.now()}_qr`;
-        const { url: uploadedQr, error: qrErr } = await uploadImage("upi-qr", settingsQrFile, path);
+        const { url: uploadedQr, error: qrErr } = await uploadImage("Upi-qr", settingsQrFile, path);
         if (qrErr) toast.error(`QR upload failed: ${qrErr}`);
         if (uploadedQr) qrUrl = uploadedQr;
       }

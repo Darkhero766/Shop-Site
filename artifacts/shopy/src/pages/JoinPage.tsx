@@ -155,7 +155,7 @@ export default function JoinPage() {
       let qrUrl: string | null = null;
       if (qrFile) {
         const path = `${s1.subdomain}/${Date.now()}_qr`;
-        const { url: uploadedQr, error: qrErr } = await uploadImage("upi-qr", qrFile, path);
+        const { url: uploadedQr, error: qrErr } = await uploadImage("Upi-qr", qrFile, path);
         if (qrErr) toast.error(`QR upload failed: ${qrErr}. You can re-upload from Settings.`);
         qrUrl = uploadedQr;
       }
@@ -186,7 +186,7 @@ export default function JoinPage() {
             const file = files[i];
             if (file) {
               const path = `${s1.subdomain}/${Date.now()}_${idx}_${i}`;
-              const { url, error: imgErr } = await uploadImage("product-images", file, path);
+              const { url, error: imgErr } = await uploadImage("Product-images", file, path);
               if (imgErr) toast.error(`Image upload failed: ${imgErr}`);
               if (url) imageUrls.push(url);
             }
