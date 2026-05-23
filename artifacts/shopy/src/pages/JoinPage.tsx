@@ -211,7 +211,7 @@ export default function JoinPage() {
     <div className="min-h-[100dvh] bg-muted/30 pb-20">
       <header className="border-b bg-background sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:opacity-80">
-          <Store className="w-6 h-6" /> ShopSite
+          <Store className="w-6 h-6" /> Shopgram
         </Link>
         <div className="text-sm font-medium text-muted-foreground">Step {step > 3 ? 3 : step} of 3</div>
       </header>
@@ -249,7 +249,7 @@ export default function JoinPage() {
                       <FormControl>
                         <div className="relative flex items-center">
                           <Input className="pr-24" {...field} data-testid="input-subdomain" />
-                          <span className="absolute right-3 text-sm text-muted-foreground">.shopsite.in</span>
+                          <span className="absolute right-3 text-sm text-muted-foreground">.shopgram.in</span>
                         </div>
                       </FormControl>
                       {subdomainAvailable === true && <p className="text-xs text-emerald-500 flex items-center mt-1"><Check className="w-3 h-3 mr-1"/> Available</p>}
@@ -506,7 +506,7 @@ export default function JoinPage() {
                 <h2 className="text-lg font-bold mb-4">Shop Summary</h2>
                 <div className="grid md:grid-cols-2 gap-6 text-sm">
                   <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Shop Name</span><span className="font-semibold text-base">{form1.watch("shop_name")}</span></div>
-                  <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">URL</span><span className="font-semibold text-primary">{form1.watch("subdomain")}.shopsite.in</span></div>
+                  <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">URL</span><span className="font-semibold text-primary">{form1.watch("subdomain")}.shopgram.in</span></div>
                   <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Category</span><span className="font-semibold">{form1.watch("category")}</span></div>
                   <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Contact</span><span className="font-semibold">{form1.watch("whatsapp")}</span></div>
                   <div><span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Instagram</span><span className="font-semibold">{form1.watch("insta_handle")}</span></div>
@@ -566,7 +566,7 @@ export default function JoinPage() {
             </p>
             <div className="bg-muted rounded-2xl p-4 inline-block">
               <p className="text-sm text-muted-foreground mb-1">Your future store URL</p>
-              <p className="font-bold text-primary text-lg">{form1.watch("subdomain")}.shopsite.in</p>
+              <p className="font-bold text-primary text-lg">{form1.watch("subdomain")}.shopgram.in</p>
             </div>
             <div className="pt-4">
               <Link href="/dashboard">

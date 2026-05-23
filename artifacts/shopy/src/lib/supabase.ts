@@ -90,18 +90,19 @@ export async function uploadImage(
   bucket: string,
   file: File,
   path: string
-): Promise<string | null> {
+): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(path, file, { upsert: true });
-  if (error || !data) return null;
-  return getStorageUrl(bucket, data.path);
+  if (error) return { url: null, error: error.message };
+  if (!data) return { url: null, error: "Upload failed: no data returned" };
+  return { url: getStorageUrl(bucket, data.path), error: null };
 }
 
 export function getSubdomainFromHost(): string | null {
   // Only activate subdomain routing on the real production domain
   const hostname = window.location.hostname;
-  const PRODUCTION_ROOT = "shopsite.in";
+  const PRODUCTION_ROOT = "shopgram.in";
 
   if (hostname.endsWith(`.${PRODUCTION_ROOT}`)) {
     const subdomain = hostname.slice(0, hostname.length - PRODUCTION_ROOT.length - 1);

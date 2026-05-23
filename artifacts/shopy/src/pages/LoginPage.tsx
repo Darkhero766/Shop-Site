@@ -47,7 +47,7 @@ export default function LoginPage() {
     <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-primary mb-8 hover:opacity-80 transition-opacity">
         <Store className="w-8 h-8" />
-        ShopSite
+        Shopgram
       </Link>
       
       <Card className="w-full max-w-md shadow-lg border-border">

@@ -75,7 +75,7 @@ export default function ShopPage({ slug }: { slug: string }) {
     if (navigator.share) {
       navigator.share({
         title: shop?.shop_name,
-        text: `Check out ${shop?.shop_name} on ShopSite!`,
+        text: `Check out ${shop?.shop_name} on Shopgram!`,
         url: window.location.href,
       }).catch(console.error);
     } else {
@@ -155,12 +155,10 @@ export default function ShopPage({ slug }: { slug: string }) {
           <h2 className="text-2xl font-bold mb-6">Products</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
             {products.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                shopName={shop.shop_name} 
-                whatsapp={shop.whatsapp}
-                onClick={() => setSelectedProduct(product)} 
+              <ProductCard
+                key={product.id}
+                product={product}
+                onClick={() => setSelectedProduct(product)}
               />
             ))}
           </div>
@@ -211,16 +209,14 @@ export default function ShopPage({ slug }: { slug: string }) {
       </main>
 
       <footer className="py-8 text-center border-t text-muted-foreground text-sm bg-muted/20">
-        <p className="mb-2">Powered by ShopSite</p>
+        <p className="mb-2">Powered by Shopgram</p>
         <Button variant="link" onClick={() => setLocation("/")}>Create your own free store →</Button>
       </footer>
 
-      <ProductDrawer 
-        product={selectedProduct} 
-        isOpen={!!selectedProduct} 
-        onClose={() => setSelectedProduct(null)} 
-        shopName={shop.shop_name}
-        whatsapp={shop.whatsapp}
+      <ProductDrawer
+        product={selectedProduct}
+        isOpen={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
       />
     </div>
   );

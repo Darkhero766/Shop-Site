@@ -9,7 +9,7 @@ export default function HomePage() {
       <header className="py-6 px-6 md:px-12 flex items-center justify-between sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="flex items-center gap-2 font-bold text-xl text-primary">
           <Store className="w-6 h-6" />
-          ShopSite
+          Shopgram
         </div>
         <div className="flex gap-4 items-center">
           <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors data-testid='link-login'">
@@ -79,7 +79,7 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">How it works</h2>
           <div className="space-y-12">
             <Step number="1" title="Fill the quick form" desc="Add your details, upload your products, and set your UPI QR code." />
-            <Step number="2" title="Get your custom link" desc="Receive your personalized shopsite.in subdomain immediately." />
+            <Step number="2" title="Get your custom link" desc="Receive your personalized shopgram.in subdomain immediately." />
             <Step number="3" title="Share on Instagram" desc="Put the link in your bio and start receiving organized orders on WhatsApp." />
           </div>
         </section>
@@ -87,7 +87,7 @@ export default function HomePage() {
 
       <footer className="py-12 text-center border-t border-border mt-auto">
         <p className="text-muted-foreground font-medium flex items-center justify-center gap-2">
-          <Store className="w-4 h-4" /> Powered by ShopSite
+          <Store className="w-4 h-4" /> Powered by Shopgram
         </p>
       </footer>
     </div>

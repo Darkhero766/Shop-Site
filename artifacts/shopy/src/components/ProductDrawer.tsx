@@ -6,23 +6,15 @@ import useEmblaCarousel from "embla-carousel-react";
 
 interface ProductDrawerProps {
   product: Product | null;
-  shopName: string;
-  whatsapp: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function ProductDrawer({ product, shopName, whatsapp, isOpen, onClose }: ProductDrawerProps) {
+export function ProductDrawer({ product, isOpen, onClose }: ProductDrawerProps) {
   const [emblaRef] = useEmblaCarousel({ loop: false });
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
   if (!product) return null;
-
-  const handleWhatsAppOrder = () => {
-    const sizeText = selectedSize ? ` (Size: ${selectedSize})` : "";
-    const text = `Hi, I want to order ${product.name}${sizeText} from ${shopName}`;
-    window.open(`https://wa.me/91${whatsapp}?text=${encodeURIComponent(text)}`, "_blank");
-  };
 
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -87,7 +79,7 @@ export function ProductDrawer({ product, shopName, whatsapp, isOpen, onClose }: 
                 </div>
               </div>
             )}
-            
+
             {product.delivery_info && (
               <div className="bg-muted/50 p-3 rounded-lg text-sm">
                 <p className="font-medium mb-1">Delivery Information</p>
@@ -97,13 +89,12 @@ export function ProductDrawer({ product, shopName, whatsapp, isOpen, onClose }: 
           </div>
 
           <DrawerFooter className="mt-4">
-            <Button 
-              className="w-full rounded-full py-6 text-lg" 
-              onClick={handleWhatsAppOrder}
-              disabled={!!(product.sizes && product.sizes.length > 0 && !selectedSize)}
+            <Button
+              className="w-full rounded-full py-6 text-lg"
+              onClick={onClose}
               data-testid="drawer-order-btn"
             >
-              Order on WhatsApp
+              Order via UPI ↓
             </Button>
           </DrawerFooter>
         </div>

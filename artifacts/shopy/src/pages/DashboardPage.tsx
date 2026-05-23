@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   const copyUrl = () => {
     if (!shop) return;
-    navigator.clipboard.writeText(`https://${shop.subdomain}.shopsite.in`);
+    navigator.clipboard.writeText(`https://${shop.subdomain}.shopgram.in`);
     setCopied(true);
     toast.success("URL copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -150,7 +150,8 @@ export default function DashboardPage() {
         const file = productImageFiles[i];
         if (file) {
           const path = `${shop.subdomain}/${Date.now()}_${i}`;
-          const url = await uploadImage("product-images", file, path);
+          const { url, error: uploadErr } = await uploadImage("product-images", file, path);
+          if (uploadErr) toast.error(`Image upload failed: ${uploadErr}`);
           if (url) newUrls.push(url);
         }
       }
@@ -204,7 +205,9 @@ export default function DashboardPage() {
       let qrUrl = shop.upi_qr_url;
       if (settingsQrFile) {
         const path = `${shop.subdomain}/${Date.now()}_qr`;
-        qrUrl = await uploadImage("upi-qr", settingsQrFile, path);
+        const { url: uploadedQr, error: qrErr } = await uploadImage("upi-qr", settingsQrFile, path);
+        if (qrErr) toast.error(`QR upload failed: ${qrErr}`);
+        if (uploadedQr) qrUrl = uploadedQr;
       }
       const { error } = await supabase.from("shops").update({
         bio: settingsForm.bio,
@@ -244,7 +247,7 @@ export default function DashboardPage() {
       <aside className="w-full md:w-64 bg-card border-r flex flex-col shrink-0">
         <div className="p-6 border-b">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-            <Store className="w-6 h-6" /> ShopSite
+            <Store className="w-6 h-6" /> Shopgram
           </Link>
         </div>
         <div className="p-4 flex-1">
@@ -292,7 +295,7 @@ export default function DashboardPage() {
                   <p className="font-bold text-amber-800 mb-1">Your store is pending approval</p>
                   <p className="text-sm text-amber-700">
                     To make your store live, go to the Admin Panel and click <strong>Approve</strong> next to your store. 
-                    Your store URL is: <span className="font-mono font-bold">{shop.subdomain}.shopsite.in</span>
+                    Your store URL is: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span>
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -314,7 +317,7 @@ export default function DashboardPage() {
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Store Link</CardTitle></CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-primary truncate">{shop.subdomain}.shopsite.in</span>
+                    <span className="font-medium text-primary truncate">{shop.subdomain}.shopgram.in</span>
                     <Button variant="ghost" size="icon" onClick={copyUrl} className="h-8 w-8 shrink-0" data-testid="btn-copy-url">
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                     </Button>

@@ -67,7 +67,7 @@ export default function AdminPage() {
           data.map((shop) => (
             <TableRow key={shop.id} data-testid={`admin-shop-row-${shop.id}`}>
               <TableCell className="font-medium">{shop.shop_name}</TableCell>
-              <TableCell>{shop.subdomain}.shopsite.in</TableCell>
+              <TableCell>{shop.subdomain}.shopgram.in</TableCell>
               <TableCell>
                 <div className="text-sm">{shop.email}</div>
                 <div className="text-xs text-muted-foreground">{shop.whatsapp}</div>
