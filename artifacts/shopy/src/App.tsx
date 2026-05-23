@@ -11,6 +11,7 @@ import LoginPage from "@/pages/LoginPage";
 import ShopPage from "@/pages/ShopPage";
 import DashboardPage from "@/pages/DashboardPage";
 import AdminPage from "@/pages/AdminPage";
+import CheckoutFlow from "@/pages/CheckoutFlow";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -18,15 +19,27 @@ const queryClient = new QueryClient();
 function Router() {
   const shopSlug = getSubdomainFromHost();
 
-  // Subdomain routing interceptor
+  // Subdomain routing: handle product checkout routes first, then fall through to ShopPage
   if (shopSlug && shopSlug !== "www" && shopSlug !== "app") {
-    return <ShopPage slug={shopSlug} />;
+    return (
+      <Switch>
+        <Route path="/s/:shopSlug/product/:productId">
+          {(params) => <CheckoutFlow shopSlug={params.shopSlug!} productId={params.productId!} />}
+        </Route>
+        <Route>
+          <ShopPage slug={shopSlug} />
+        </Route>
+      </Switch>
+    );
   }
 
   // Normal App Routing
   return (
     <Switch>
       <Route path="/" component={HomePage} />
+      <Route path="/s/:shopSlug/product/:productId">
+        {(params) => <CheckoutFlow shopSlug={params.shopSlug!} productId={params.productId!} />}
+      </Route>
       <Route path="/join" component={JoinPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/dashboard" component={DashboardPage} />

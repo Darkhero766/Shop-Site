@@ -1,0 +1,73 @@
+Step 1 — Product Page /s/[shopname]/product/[productid]
+When buyer clicks "Buy Now" on any product card they go to this dedicated product page. Show:
+
+Swipeable product images at top
+Product name, price in ₹, description
+Size selector as pill buttons (required if sizes exist, buyer must select one before proceeding)
+Quantity selector (default 1, min 1 max 10)
+Total price updates live based on quantity
+"Buy Now" button fixed at bottom of screen
+
+Step 2 — Buyer Details Form (separate full page)
+Clean form with progress bar showing Step 1 of 3. Collect:
+
+Full name (required)
+Phone number (required, 10 digits)
+Email (optional)
+Full address (required, textarea)
+City (required)
+Pincode (required, 6 digits numeric)
+State (required, dropdown of all Indian states)
+Special instructions (optional, textarea)
+Order summary card on top showing: product image, name, size, quantity, total price
+"Proceed to Payment" button at bottom, validates all required fields before going forward, shows inline errors under each empty field
+
+Step 3 — Payment Page (separate full page, Step 2 of 3)
+
+Progress bar at top
+Order summary at top: product name, size, quantity, total ₹
+Unique Order ID generated as ORD-[random 8 chars uppercase] shown in a highlighted box with copy button
+Instructions text: "Complete your payment using the QR below"
+Shop UPI QR image large and centered
+UPI ID text below QR with one-tap copy button
+Exact amount to pay shown in large bold text in green
+Divider line with text "After paying, submit proof below"
+Two clearly separated options:
+
+Option A: Upload payment screenshot — drag and drop or tap to upload, accepts jpg/png/webp, shows thumbnail preview after selecting
+Option B: Enter Transaction ID — input field, exactly 12 digits, numeric only, shows green tick when valid format
+
+
+Buyer can use either option A or B, not both required
+"Confirm Payment" button — disabled until screenshot is uploaded or valid UTR entered
+On click: save complete order to Supabase orders table with all buyer details, address, order ID, UTR or screenshot URL, shop ID, product ID, size, quantity, amount, status = pending, timestamp
+Screenshot uploads to Supabase storage bucket payment-screenshots
+If UTR already exists in database show red error: "This transaction ID has already been used. Please recheck your payment app and enter the correct ID."
+
+Step 4 — Success Page (Step 3 of 3)
+
+Large green animated checkmark
+Heading: "Order Placed!"
+Subtext: "Your order has been received and is pending confirmation"
+Order ID in a big copyable box
+Clean summary card: product image, name, size, quantity, amount, delivery address, estimated timeline text: "Sellers typically confirm within 24 hours"
+Single button: "Back to Shop" which goes to the shop homepage
+
+Progress bar
+Shown on steps 2, 3, 4. Three steps labeled: "Details → Payment → Done". Current step highlighted in purple, completed steps in green, upcoming in grey.
+Design rules
+
+Fully mobile first, single column
+Smooth fade-in transition between every page
+Font: Inter
+Primary color: purple #7C3AED
+Success color: green #10B981
+Error color: red #EF4444
+All input fields: rounded-lg, border, focus ring in purple
+All primary buttons: rounded-full, full width on mobile, purple background white text
+Show loading spinner inside "Confirm Payment" button while saving to Supabase
+All pages have a back arrow at top left to go to previous step
+Buyer data is kept in React state across all steps, never lost when going back
+
+Seller dashboard updates
+In the Orders tab show a clean table with these columns: Order ID, Product name, Size, Quantity, Amount, Buyer name, Buyer phone, City, Pincode, Full address, Payment proof (clickable link to screenshot or UTR number), Date, Status. Status column has two buttons: green "Confirm" and red "Decline" which update order status in Supabase. Add a filter bar at top: All Orders, Pending, Confirmed, Declined. 
