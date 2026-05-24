@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "confirmed" | "declined">("all");
 
   // Product form state
   const [showProductForm, setShowProductForm] = useState(false);
@@ -527,50 +528,109 @@ export default function DashboardPage() {
           </TabsContent>
 
           {/* ── Orders ── */}
-          <TabsContent value="orders">
+          <TabsContent value="orders" className="space-y-4">
+            {/* Filter bar */}
+            <div className="flex flex-wrap gap-2">
+              {(["all", "pending", "confirmed", "declined"] as const).map(f => {
+                const count = f === "all" ? orders.length : orders.filter(o => o.status === f).length;
+                return (
+                  <Button
+                    key={f}
+                    variant={orderFilter === f ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full capitalize"
+                    onClick={() => setOrderFilter(f)}
+                  >
+                    {f === "all" ? "All Orders" : f}
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold ${orderFilter === f ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {count}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
+
             <Card>
-              <CardHeader><CardTitle>Orders ({orders.length})</CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto">
+              <CardContent className="overflow-x-auto p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Buyer</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>UTR</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="whitespace-nowrap">Order ID</TableHead>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Product</TableHead>
+                      <TableHead className="whitespace-nowrap">Size</TableHead>
+                      <TableHead className="whitespace-nowrap">Qty</TableHead>
+                      <TableHead className="whitespace-nowrap">Amount</TableHead>
+                      <TableHead className="whitespace-nowrap">Buyer Name</TableHead>
+                      <TableHead className="whitespace-nowrap">Phone</TableHead>
+                      <TableHead className="whitespace-nowrap">City</TableHead>
+                      <TableHead className="whitespace-nowrap">Pincode</TableHead>
+                      <TableHead className="whitespace-nowrap min-w-[180px]">Address</TableHead>
+                      <TableHead className="whitespace-nowrap">Payment Proof</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="whitespace-nowrap">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No orders yet.</TableCell></TableRow>
-                    ) : orders.map((order) => (
-                      <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
-                        <TableCell className="whitespace-nowrap text-sm">{new Date(order.created_at).toLocaleDateString("en-IN")}</TableCell>
-                        <TableCell>
-                          <div className="font-medium text-sm">{order.buyer_name}</div>
-                          <div className="text-xs text-muted-foreground">{order.buyer_phone}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">{order.products?.name}</TableCell>
-                        <TableCell className="font-medium">₹{order.amount}</TableCell>
-                        <TableCell className="font-mono text-xs">{order.utr}</TableCell>
-                        <TableCell>
-                          <Badge variant={order.status === "confirmed" ? "default" : order.status === "declined" ? "destructive" : "secondary"} className="capitalize">
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {order.status === "pending" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-full text-xs h-7" onClick={() => updateOrderStatus(order.id, "confirmed")} data-testid={`btn-confirm-${order.id}`}>Confirm</Button>
-                              <Button size="sm" variant="destructive" className="rounded-full text-xs h-7" onClick={() => updateOrderStatus(order.id, "declined")} data-testid={`btn-decline-${order.id}`}>Decline</Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {(() => {
+                      const filtered = orderFilter === "all" ? orders : orders.filter(o => o.status === orderFilter);
+                      if (filtered.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
+                              {orderFilter === "all" ? "No orders yet." : `No ${orderFilter} orders.`}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      return filtered.map((order) => (
+                        <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
+                          <TableCell className="font-mono text-xs whitespace-nowrap">{order.order_id ?? "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">{new Date(order.created_at).toLocaleDateString("en-IN")}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{order.products?.name ?? "—"}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{order.size ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-center">{order.quantity ?? 1}</TableCell>
+                          <TableCell className="font-semibold whitespace-nowrap">₹{order.amount}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap font-medium">{order.buyer_name}</TableCell>
+                          <TableCell className="font-mono text-xs whitespace-nowrap">{order.buyer_phone}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{order.city ?? "—"}</TableCell>
+                          <TableCell className="font-mono text-xs whitespace-nowrap">{order.pincode ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px]">{order.full_address ?? "—"}</TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {order.payment_screenshot_url ? (
+                              <a href={order.payment_screenshot_url} target="_blank" rel="noreferrer"
+                                className="text-primary underline underline-offset-2 hover:opacity-80">
+                                View screenshot
+                              </a>
+                            ) : order.utr ? (
+                              <span className="font-mono">{order.utr}</span>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={order.status === "confirmed" ? "default" : order.status === "declined" ? "destructive" : "secondary"}
+                              className="capitalize whitespace-nowrap"
+                            >
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {order.status === "pending" && (
+                              <div className="flex gap-1.5">
+                                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-full text-xs h-7 whitespace-nowrap"
+                                  onClick={() => updateOrderStatus(order.id, "confirmed")} data-testid={`btn-confirm-${order.id}`}>
+                                  Confirm
+                                </Button>
+                                <Button size="sm" variant="destructive" className="rounded-full text-xs h-7"
+                                  onClick={() => updateOrderStatus(order.id, "declined")} data-testid={`btn-decline-${order.id}`}>
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ));
+                    })()}
                   </TableBody>
                 </Table>
               </CardContent>

@@ -159,6 +159,7 @@ export default function ShopPage({ slug }: { slug: string }) {
                 key={product.id}
                 product={product}
                 onClick={() => setSelectedProduct(product)}
+                onBuyNow={() => setLocation(`/s/${slug}/product/${product.id}`)}
               />
             ))}
           </div>
