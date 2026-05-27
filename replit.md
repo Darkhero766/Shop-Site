@@ -69,6 +69,16 @@ A template is provided in `.env.example`.
 
 **Netlify** — import the repo, Netlify auto-detects `netlify.toml`. Set the three env vars in Site → Environment Variables. Done.
 
+**Render (full-stack)** — push to GitHub, then go to [render.com](https://render.com) → New → Blueprint → select your repo. Render reads `render.yaml` and creates:
+  1. A **PostgreSQL database** (`shopy-db`)
+  2. A **Web Service** for the API (`shopy-api`) — `DATABASE_URL` is wired automatically
+  3. A **Static Site** for the frontend (`shopy-frontend`) — set these 3 env vars in the Render dashboard:
+     - `VITE_SUPABASE_URL`
+     - `VITE_SUPABASE_ANON_KEY`
+     - `VITE_ADMIN_EMAIL`
+  4. Optionally set `ALLOWED_ORIGIN` on the API service to your frontend URL for locked-down CORS
+  - API health check: `GET /api/healthz` → `{"status":"ok"}`
+
 **Any static host (GitHub Pages, Cloudflare Pages, etc.):**
 - Build command: `pnpm --filter @workspace/shopy run build`
 - Output directory: `artifacts/shopy/dist/public`
