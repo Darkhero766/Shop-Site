@@ -53,6 +53,30 @@ A multi-tenant SaaS platform for Indian Instagram micro-sellers to create their 
 - Currency always ₹, integer only
 - UTR always 12 digits numeric
 
+## Deploying to external platforms
+
+The app is a pure static SPA (React + Vite). There is no Node.js server needed in production — only Supabase.
+
+**Required environment variables (set in your platform dashboard):**
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_ADMIN_EMAIL=admin@example.com
+```
+A template is provided in `.env.example`.
+
+**Vercel** — import the repo, Vercel auto-detects `vercel.json`. Set the three env vars in Project → Settings → Environment Variables. Done.
+
+**Netlify** — import the repo, Netlify auto-detects `netlify.toml`. Set the three env vars in Site → Environment Variables. Done.
+
+**Any static host (GitHub Pages, Cloudflare Pages, etc.):**
+- Build command: `pnpm --filter @workspace/shopy run build`
+- Output directory: `artifacts/shopy/dist/public`
+- Set `BASE_PATH=/` as a build env var
+- Configure all routes to serve `index.html` (SPA fallback)
+
+**Subdomain routing in production:** Each seller shop lives at `<slug>.shopgram.in`. Configure wildcard DNS (`*.shopgram.in`) pointing to your host. The app auto-detects the subdomain and renders the correct shop. For local dev, use `?shop=<slug>`.
+
 ## Gotchas
 
 - Supabase tables must have RLS enabled with correct policies before the app works end-to-end

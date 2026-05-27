@@ -1,0 +1,12 @@
+[build]
+  command   = "pnpm --filter @workspace/shopy run build"
+  publish   = "artifacts/shopy/dist/public"
+
+[build.environment]
+  NODE_VERSION = "24"
+  BASE_PATH    = "/"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

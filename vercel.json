@@ -1,0 +1,12 @@
+{
+  "buildCommand": "pnpm --filter @workspace/shopy run build",
+  "outputDirectory": "artifacts/shopy/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "env": {
+    "BASE_PATH": "/"
+  }
+}
