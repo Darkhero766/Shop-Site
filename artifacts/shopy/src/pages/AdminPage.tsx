@@ -16,11 +16,24 @@ export default function AdminPage() {
   useEffect(() => {
     async function verifyAndLoad() {
       const { data: { user } } = await supabase.auth.getUser();
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-      
-      // Strict admin check
-      if (!user || user.email !== adminEmail) {
-        toast.error("Unauthorized access");
+
+      if (!user) {
+        toast.error("Please log in first");
+        setLocation("/login");
+        return;
+      }
+
+      const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? "").trim().toLowerCase();
+      const userEmail = (user.email ?? "").trim().toLowerCase();
+
+      if (!adminEmail) {
+        toast.error("Admin email not configured — check VITE_ADMIN_EMAIL env var");
+        setLocation("/");
+        return;
+      }
+
+      if (userEmail !== adminEmail) {
+        toast.error(`Access denied. Logged in as: ${user.email}`);
         setLocation("/");
         return;
       }
