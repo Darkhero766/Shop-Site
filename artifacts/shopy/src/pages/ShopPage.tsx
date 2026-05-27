@@ -158,6 +158,8 @@ export default function ShopPage({ slug }: { slug: string }) {
               <ProductCard
                 key={product.id}
                 product={product}
+                avgRating={reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : undefined}
+                reviewCount={reviews.length > 0 ? reviews.length : undefined}
                 onClick={() => setSelectedProduct(product)}
                 onBuyNow={() => setLocation(`/s/${slug}/product/${product.id}`)}
               />
@@ -218,6 +220,7 @@ export default function ShopPage({ slug }: { slug: string }) {
         product={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        reviews={reviews}
       />
     </div>
   );
