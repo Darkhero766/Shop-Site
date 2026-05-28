@@ -1,0 +1,89 @@
+improve the product page. Keep all existing functionality but make it much more interactive, trustworthy and conversion focused. Here are all the changes:
+Image section
+
+Make the image full width edge to edge on mobile, no side padding, no rounded corners on top
+Add swipe gesture support on mobile (touch swipe left/right to change image)
+Add dot indicators below image showing current photo — dots are tappable
+Add a fullscreen/zoom button (magnifier icon) top right corner of image — tapping opens image in fullscreen overlay with pinch to zoom
+Show image counter as a pill badge on top left of image: '1 / 2' in white text on dark background
+Remove the separate '1 / 2 photos' text below image
+
+Product info section
+
+Add product name in large bold text (24px) above the price — it's missing currently
+Price: keep purple color but make it larger (32px bold)
+Add a 'In Stock ✓' green badge next to price if in stock, 'Out of Stock' red badge if not
+Add a thin divider line between price and size selector
+Add short description text below size selector in grey color
+Add a 'Delivery' info row with a truck icon: show delivery days text from product data
+
+Size selector
+
+Make size pills larger — minimum 44px height, 44px wide, easy to tap on mobile
+Selected size: filled purple background white text
+Unselected size: white background purple border purple text
+Add a subtle bounce animation when a size is selected
+If no size is selected and user taps Order button, shake the size selector and show red text 'Please select a size'
+
+Trust badges row
+Add a horizontal row of 3 small trust badges between description and order button:
+
+🔒 Secure UPI Payment
+✅ Verified Seller
+📦 Direct Shipping
+Each badge: small icon + 2 word text, grey color, separated by dots
+
+Reviews mini section
+Add a compact reviews preview just above the order button:
+
+Show average star rating as filled yellow stars
+Show total review count: '(23 reviews)'
+Show 1 most recent review text truncated to 1 line with reviewer first name
+Tapping this scrolls down to full reviews section or navigates to reviews tab
+If no reviews yet show: 'Be the first to review this product'
+
+Order button
+
+Change text to 'Buy Now — ₹[price]' so buyer sees the amount on the button itself
+Add a small lightning bolt icon ⚡ before the text
+Button should be sticky fixed at bottom of screen always visible while scrolling
+Add a subtle pulse animation on the button to draw attention
+Background: gradient from purple #7C3AED to indigo #4F46E5
+When tapped: show a quick checkmark animation before navigating to next step
+
+Quantity selector
+Add a quantity selector row above the order button:
+
+Minus button | quantity number | Plus button
+Minimum 1 maximum 10
+When quantity changes update the total price on the Buy Now button live
+Example: 'Buy Now — ₹220' when quantity is 2 at ₹110 each
+
+Share button
+Add a share icon button in top right corner of the page header
+
+Tapping opens native share sheet on mobile with the product page URL
+Text: 'Check out this product on ShopGram'
+
+Page header
+
+Add a back arrow top left that goes back to the shop homepage
+Show shop name in center of header small text
+Thin header with white background and bottom border
+Header stays fixed at top while scrolling
+
+Bottom spacing
+Add enough padding at bottom of page so the sticky Buy Now button never covers any content
+Animations and interactions
+
+Smooth fade in when page loads
+Image slides smoothly when swiping
+Size pill has spring bounce on select
+Sticky button has entrance animation sliding up from bottom on page load
+All transitions: 200ms ease
+
+Mobile optimization
+
+Every tappable element minimum 44x44px
+No horizontal scroll anywhere
+Font sizes minimum 16px for all body text so iOS does not auto zoom on input focus

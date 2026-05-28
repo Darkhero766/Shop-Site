@@ -220,7 +220,9 @@ export default function ShopPage({ slug }: { slug: string }) {
         product={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        onOrder={() => selectedProduct && setLocation(`/s/${slug}/product/${selectedProduct.id}`)}
         reviews={reviews}
+        shopName={shop.shop_name}
       />
     </div>
   );
