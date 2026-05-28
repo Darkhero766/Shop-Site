@@ -310,11 +310,11 @@ export default function DashboardPage() {
                     </Button>
                   </a>
                   {userEmail === import.meta.env.VITE_ADMIN_EMAIL && (
-                    <a href="/admin">
+                    <Link href="/admin">
                       <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white">
                         Go to Admin Panel
                       </Button>
-                    </a>
+                    </Link>
                   )}
                 </div>
               </div>

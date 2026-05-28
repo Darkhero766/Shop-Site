@@ -9,7 +9,7 @@ import { BadgeCheck, Instagram, MessageCircle, AlertCircle, Share2 } from "lucid
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function ShopPage({ slug }: { slug: string }) {
   const [, setLocation] = useLocation();
@@ -115,7 +115,7 @@ export default function ShopPage({ slug }: { slug: string }) {
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>
             This store is <strong>pending review</strong> and is only visible to you as a preview.
-            Go to <a href="/admin" className="underline font-bold">Admin Panel</a> to approve it.
+            Go to <Link href="/admin" className="underline font-bold">Admin Panel</Link> to approve it.
           </span>
         </div>
       )}
