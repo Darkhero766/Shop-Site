@@ -52,8 +52,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLocation("/login"); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setLocation("/login"); return; }
+      const user = session.user;
       setUserEmail(user.email ?? "");
 
       try {

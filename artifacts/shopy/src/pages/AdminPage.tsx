@@ -15,14 +15,15 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function verifyAndLoad() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!user) {
+      if (!session) {
         toast.error("Please log in first");
         setLocation("/login");
         return;
       }
 
+      const user = session.user;
       const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? "").trim().toLowerCase();
       const userEmail = (user.email ?? "").trim().toLowerCase();
 
