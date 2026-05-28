@@ -49,12 +49,35 @@ export default function AdminPage() {
 
   const updateStatus = async (id: string, status: "active" | "suspended") => {
     const { error } = await supabase.from("shops").update({ status }).eq("id", id);
-    if (!error) {
-      setShops(shops.map(s => s.id === id ? { ...s, status } : s));
-      toast.success(`Shop marked as ${status}`);
-    } else {
-      toast.error("Update failed");
+    if (error) {
+      toast.error(`Update failed: ${error.message}`);
+      return;
     }
+
+    // Verify the change actually persisted in the database (RLS can silently block updates)
+    const { data: refetched, error: fetchErr } = await supabase
+      .from("shops")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr || !refetched) {
+      toast.error("Could not verify update. Please refresh.");
+      return;
+    }
+
+    if (refetched.status !== status) {
+      toast.error(
+        "Update blocked by Supabase permissions (RLS). " +
+        "Go to Supabase Dashboard → Table Editor → shops → RLS Policies " +
+        "and add an UPDATE policy that allows your admin user.",
+        { duration: 8000 }
+      );
+      return;
+    }
+
+    setShops(shops.map(s => s.id === id ? { ...s, status } : s));
+    toast.success(`Shop marked as ${status}`);
   };
 
   if (isLoading) return <div className="flex h-screen items-center justify-center">Loading admin panel...</div>;
