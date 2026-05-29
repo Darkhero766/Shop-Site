@@ -605,11 +605,16 @@ function SuccessStep({ product, cart, buyer, orderId, shopSlug }: {
 // ─── Main CheckoutFlow ────────────────────────────────────────────────────────
 
 export default function CheckoutFlow({ shopSlug, productId }: { shopSlug: string; productId: string }) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const searchParams = new URLSearchParams(window.location.search);
+  const preSize = searchParams.get("size");
+  const preQty = parseInt(searchParams.get("qty") ?? "1", 10);
+  const hasPreCart = searchParams.has("qty");
+
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(hasPreCart ? 2 : 1);
   const [shop, setShop] = useState<Shop | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [cart, setCart] = useState<CartData>({ size: null, quantity: 1 });
+  const [cart, setCart] = useState<CartData>({ size: preSize, quantity: isNaN(preQty) ? 1 : preQty });
   const [buyer, setBuyer] = useState<BuyerData>({ name: "", phone: "", email: "", address: "", city: "", pincode: "", state: "", instructions: "" });
   const [orderId] = useState(() => generateOrderId());
   const [, navigate] = useLocation();

@@ -13,7 +13,7 @@ interface ProductDrawerProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
-  onOrder?: () => void;
+  onOrder?: (size: string | null, qty: number) => void;
   reviews?: Review[];
   shopName?: string;
 }
@@ -75,7 +75,7 @@ export function ProductDrawer({
     setShowCheckmark(true);
     setTimeout(() => {
       setShowCheckmark(false);
-      onOrder?.();
+      onOrder?.(selectedSize, quantity);
     }, 700);
   };
 

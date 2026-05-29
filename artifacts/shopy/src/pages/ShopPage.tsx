@@ -167,7 +167,7 @@ export default function ShopPage({ slug }: { slug: string }) {
                 avgRating={reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : undefined}
                 reviewCount={reviews.length > 0 ? reviews.length : undefined}
                 onClick={() => setSelectedProduct(product)}
-                onBuyNow={() => setLocation(`/s/${slug}/product/${product.id}`)}
+                onBuyNow={() => setSelectedProduct(product)}
               />
             ))}
           </div>
@@ -226,7 +226,12 @@ export default function ShopPage({ slug }: { slug: string }) {
         product={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
-        onOrder={() => selectedProduct && setLocation(`/s/${slug}/product/${selectedProduct.id}`)}
+        onOrder={(size, qty) => {
+          if (!selectedProduct) return;
+          const params = new URLSearchParams({ qty: String(qty) });
+          if (size) params.set("size", size);
+          setLocation(`/s/${slug}/product/${selectedProduct.id}?${params.toString()}`);
+        }}
         reviews={reviews}
         shopName={shop.shop_name}
       />
