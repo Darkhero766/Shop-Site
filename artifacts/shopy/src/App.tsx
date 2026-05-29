@@ -5,6 +5,7 @@ import { Toaster as SonnerToaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSubdomainFromHost } from "@/lib/supabase";
 import { AuthProvider } from "@/lib/auth-context";
+import { BuyerAuthProvider } from "@/lib/buyer-auth-context";
 
 import HomePage from "@/pages/HomePage";
 import JoinPage from "@/pages/JoinPage";
@@ -54,6 +55,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <BuyerAuthProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
@@ -61,6 +63,7 @@ function App() {
           <Toaster />
           <SonnerToaster position="top-right" richColors />
         </TooltipProvider>
+        </BuyerAuthProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

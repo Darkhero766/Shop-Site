@@ -1,0 +1,99 @@
+Add a complete buyer login and account system to every seller shop page (the subdomain pages like shopname.shopgram.in). Here is everything needed:
+Buyer Authentication Flow
+Buyers should be able to create an account and login directly on the seller's shop page without leaving it. Use Supabase Auth for this but keep it completely separate from seller auth. A buyer account works across ALL shops on ShopGram — one account, shop anywhere.
+Add buyers table to Supabase:
+sqlcreate table buyers (
+  id uuid primary key references auth.users(id),
+  full_name text,
+  phone text,
+  email text not null,
+  default_address text,
+  default_city text,
+  default_state text,
+  default_pincode text,
+  created_at timestamptz default now()
+);
+Enable RLS — buyers can only read and update their own row.
+Login / Signup UI on shop page
+Add a small account button in the top right corner of every shop page header — show a person icon 👤. Tapping it opens a bottom sheet modal (slides up from bottom, not a new page) with two tabs: Login and Sign Up.
+Sign Up tab fields:
+
+Full name (required)
+Email (required)
+Phone number (required, 10 digits)
+Password (required, minimum 8 chars, show/hide toggle)
+Confirm password (required)
+Sign Up button — creates Supabase auth user + inserts row in buyers table
+
+Login tab fields:
+
+Email
+Password with show/hide toggle
+Login button
+Forgot password link — sends Supabase password reset email
+
+Both tabs:
+
+Show loading spinner on button while processing
+Show inline error messages below fields on failure
+On success: close modal, show 'Welcome [name]!' toast notification, update header icon to show first letter of buyer name in purple circle
+Google Sign In button below the form divider — use Supabase Google OAuth
+
+When buyer is logged in
+
+Header shows buyer's first initial in a purple filled circle instead of person icon
+Tapping the circle opens a small dropdown menu:
+
+My Orders
+My Profile
+Logout
+
+
+
+My Orders page — /s/[shopname]/my-orders or as a modal
+
+List all orders this buyer has placed on ANY shop on ShopGram
+Each order card shows: shop name, product name, product image, amount, order ID, status badge (Pending/Confirmed/Declined), date placed
+Status badge colors: Pending = yellow, Confirmed = green, Declined = red
+Tapping an order shows full order details in a bottom sheet
+
+My Profile page — as a bottom sheet modal
+
+Edit full name
+Edit phone number
+Edit default delivery address, city, state, pincode
+Save button updates buyers table in Supabase
+Saved address auto-fills the address form when buyer places next order
+
+Auto-fill on checkout
+When a logged in buyer clicks Buy Now on any product:
+
+Step 2 address form is auto-filled with their saved default address
+Their name and phone are pre-filled too
+They just review and tap Proceed to Payment — much faster checkout
+Show a small 'Using saved address ✓' green text above the form with an 'Edit' link
+
+Order linking
+When a logged in buyer submits an order, save their buyer_id in the orders table:
+sqlalter table orders add column buyer_id uuid references buyers(id);
+This links orders to buyer accounts so My Orders page works correctly.
+Guest checkout
+Buying without an account still works completely — do not force login. Just show a small banner above the Buy Now button: 'Login to track your orders and auto-fill your address' with a Login link. Guest orders have null buyer_id.
+Security rules
+
+Buyers can only see their own orders — add RLS policy: buyer_id = auth.uid()
+Buyer profile row only readable and editable by that buyer
+Seller dashboard is completely separate — sellers cannot see buyer passwords or auth details
+Buyer login modal only appears on shop subdomain pages — not on main shopgram.in pages
+
+Design rules
+
+Bottom sheet modal: white background, rounded top corners 24px, smooth slide up animation 300ms
+Tab switcher: underline style, purple active tab
+All input fields: rounded-lg, 16px font, purple focus ring
+Error text: red #EF4444 below each field
+Success toast: green, slides in from top, auto dismisses after 3 seconds
+Person icon and initial circle: always visible top right of shop header
+Modal has a drag handle bar at top center
+Backdrop: dark overlay behind modal, tapping it closes the modal
+Mobile first — modal is full width on mobile, max 480px on desktop centered

@@ -1,0 +1,524 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Eye, EyeOff, X, User, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useBuyerAuth } from "@/lib/buyer-auth-context";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+type Tab = "login" | "signup";
+
+function PasswordInput({
+  value, onChange, placeholder, error,
+}: {
+  value: string; onChange: (v: string) => void; placeholder: string; error?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      <div className="relative">
+        <Input
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`pr-10 rounded-lg text-base focus-visible:ring-purple-500 ${error ? "border-red-500 focus-visible:ring-red-400" : ""}`}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(s => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [loading, setLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: typeof errors = {};
+    if (!email.includes("@")) errs.email = "Enter a valid email";
+    if (!password) errs.password = "Password is required";
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
+    setLoading(true);
+    setErrors({});
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+
+    if (error) { setErrors({ general: error.message }); return; }
+
+    const name = data.user?.user_metadata?.full_name ?? email.split("@")[0];
+    toast.success(`Welcome back, ${name}! 👋`, { duration: 3000 });
+    onSuccess();
+  };
+
+  const handleForgot = async () => {
+    if (!email.includes("@")) { setErrors({ email: "Enter your email first" }); return; }
+    await supabase.auth.resetPasswordForEmail(email);
+    setForgotSent(true);
+    toast.success("Password reset email sent!");
+  };
+
+  return (
+    <form onSubmit={handleLogin} className="space-y-4 pt-2">
+      <div>
+        <label className="text-sm font-medium mb-1 block">Email</label>
+        <Input
+          type="email" value={email} onChange={e => { setEmail(e.target.value); setErrors({}); }}
+          placeholder="you@example.com"
+          className={`rounded-lg text-base focus-visible:ring-purple-500 ${errors.email ? "border-red-500" : ""}`}
+        />
+        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Password</label>
+        <PasswordInput value={password} onChange={v => { setPassword(v); setErrors({}); }} placeholder="Your password" error={errors.password} />
+      </div>
+      {errors.general && <p className="text-xs text-red-500">{errors.general}</p>}
+      <Button type="submit" disabled={loading} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Login"}
+      </Button>
+      <button
+        type="button"
+        onClick={handleForgot}
+        className="w-full text-center text-sm text-purple-600 hover:underline"
+      >
+        {forgotSent ? "Reset email sent ✓" : "Forgot password?"}
+      </button>
+    </form>
+  );
+}
+
+function SignupForm({ onSuccess }: { onSuccess: () => void }) {
+  const { refreshProfile } = useBuyerAuth();
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
+  const [errors, setErrors] = useState<Partial<typeof form & { general: string }>>({});
+  const [loading, setLoading] = useState(false);
+
+  const set = (k: keyof typeof form) => (v: string) => { setForm(f => ({ ...f, [k]: v })); setErrors({}); };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: typeof errors = {};
+    if (!form.name.trim()) errs.name = "Full name is required";
+    if (!form.email.includes("@")) errs.email = "Enter a valid email";
+    if (!/^\d{10}$/.test(form.phone)) errs.phone = "Enter a valid 10-digit phone number";
+    if (form.password.length < 8) errs.password = "Minimum 8 characters";
+    if (form.password !== form.confirm) errs.confirm = "Passwords don't match";
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
+    setLoading(true);
+    setErrors({});
+
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: { data: { full_name: form.name } },
+    });
+
+    if (error) { setLoading(false); setErrors({ general: error.message }); return; }
+
+    if (data.user) {
+      await supabase.from("buyers").upsert({
+        id: data.user.id,
+        full_name: form.name,
+        phone: form.phone,
+        email: form.email,
+      });
+      await refreshProfile();
+    }
+
+    setLoading(false);
+    toast.success(`Welcome, ${form.name}! 🎉`, { duration: 3000 });
+    onSuccess();
+  };
+
+  return (
+    <form onSubmit={handleSignup} className="space-y-4 pt-2">
+      <div>
+        <label className="text-sm font-medium mb-1 block">Full Name *</label>
+        <Input value={form.name} onChange={e => set("name")(e.target.value)} placeholder="Your full name"
+          className={`rounded-lg text-base focus-visible:ring-purple-500 ${errors.name ? "border-red-500" : ""}`} />
+        {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Email *</label>
+        <Input type="email" value={form.email} onChange={e => set("email")(e.target.value)} placeholder="you@example.com"
+          className={`rounded-lg text-base focus-visible:ring-purple-500 ${errors.email ? "border-red-500" : ""}`} />
+        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Phone Number *</label>
+        <Input value={form.phone} onChange={e => set("phone")(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          placeholder="10-digit mobile number" inputMode="numeric" maxLength={10}
+          className={`rounded-lg text-base focus-visible:ring-purple-500 ${errors.phone ? "border-red-500" : ""}`} />
+        {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Password *</label>
+        <PasswordInput value={form.password} onChange={set("password")} placeholder="Min. 8 characters" error={errors.password} />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Confirm Password *</label>
+        <PasswordInput value={form.confirm} onChange={set("confirm")} placeholder="Repeat password" error={errors.confirm} />
+      </div>
+      {errors.general && <p className="text-xs text-red-500">{errors.general}</p>}
+      <Button type="submit" disabled={loading} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
+      </Button>
+    </form>
+  );
+}
+
+export function BuyerAuthModal({ open, onClose, defaultTab = "login" }: {
+  open: boolean; onClose: () => void; defaultTab?: Tab;
+}) {
+  const [tab, setTab] = useState<Tab>(defaultTab);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[480px] bg-white rounded-t-[24px] shadow-2xl"
+            style={{ left: "50%", transform: "translateX(-50%) translateY(0)", maxWidth: "480px", width: "100%" }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
+            <div className="px-6 pb-8 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-5 pt-2">
+                <h2 className="text-xl font-bold">My Account</h2>
+                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex border-b mb-5">
+                {(["login", "signup"] as Tab[]).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`flex-1 pb-2 text-sm font-semibold transition-colors capitalize ${
+                      tab === t
+                        ? "border-b-2 border-purple-600 text-purple-600"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Login" : "Sign Up"}
+                  </button>
+                ))}
+              </div>
+
+              {tab === "login" ? (
+                <LoginForm onSuccess={onClose} />
+              ) : (
+                <SignupForm onSuccess={onClose} />
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export function BuyerAccountButton({ onOpenAuth }: { onOpenAuth: (tab?: Tab) => void }) {
+  const { buyerSession, buyerProfile, buyerLoading, signOut } = useBuyerAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+
+  if (buyerLoading) return null;
+
+  if (!buyerSession) {
+    return (
+      <button
+        onClick={() => onOpenAuth("login")}
+        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+        aria-label="Login"
+      >
+        <User className="w-6 h-6 text-gray-600" />
+      </button>
+    );
+  }
+
+  const initial = (buyerProfile?.full_name ?? buyerSession.user.email ?? "?")[0].toUpperCase();
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setDropdownOpen(o => !o)}
+        className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center hover:bg-purple-700 transition-colors"
+      >
+        {initial}
+      </button>
+      <AnimatePresence>
+        {dropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setDropdownOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 top-11 z-40 bg-white border rounded-2xl shadow-xl w-48 overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b">
+                <p className="font-semibold text-sm truncate">{buyerProfile?.full_name ?? "Buyer"}</p>
+                <p className="text-xs text-muted-foreground truncate">{buyerSession.user.email}</p>
+              </div>
+              <button
+                onClick={() => { setDropdownOpen(false); setShowOrders(true); }}
+                className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors"
+              >
+                📦 My Orders
+              </button>
+              <button
+                onClick={() => { setDropdownOpen(false); setShowProfile(true); }}
+                className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors"
+              >
+                👤 My Profile
+              </button>
+              <button
+                onClick={() => { setDropdownOpen(false); signOut(); }}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t"
+              >
+                Logout
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {showOrders && <BuyerOrdersSheet onClose={() => setShowOrders(false)} />}
+      {showProfile && <BuyerProfileSheet onClose={() => setShowProfile(false)} />}
+    </div>
+  );
+}
+
+function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
+  const { buyerSession } = useBuyerAuth();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!buyerSession) { setLoading(false); return; }
+    supabase
+      .from("orders")
+      .select("*, products(name, images)")
+      .eq("buyer_id", buyerSession.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
+  }, [buyerSession?.user.id]);
+
+  const statusColor = (s: string) =>
+    s === "confirmed" ? "bg-green-100 text-green-700" :
+    s === "declined" ? "bg-red-100 text-red-700" :
+    "bg-yellow-100 text-yellow-700";
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl max-h-[85vh] flex flex-col"
+        style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+        <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+          <h2 className="text-xl font-bold">My Orders</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-purple-600" /></div>}
+          {!loading && orders.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-4xl mb-3">📦</p>
+              <p className="font-medium">No orders yet</p>
+              <p className="text-sm">Your orders will appear here after you buy something</p>
+            </div>
+          )}
+          {orders.map(order => (
+            <button key={order.id} onClick={() => setSelected(order)}
+              className="w-full text-left bg-gray-50 rounded-2xl p-4 hover:bg-gray-100 transition-colors">
+              <div className="flex gap-3 items-start">
+                {order.products?.images?.[0] && (
+                  <img src={order.products.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{order.products?.name ?? "Product"}</p>
+                  <p className="text-xs text-muted-foreground">Order ID: {order.order_id}</p>
+                  <p className="font-bold text-purple-600 text-sm">₹{order.amount}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${statusColor(order.status)}`}>
+                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {selected && (
+        <AnimatePresence>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50" onClick={() => setSelected(null)} />
+          <motion.div
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[24px] shadow-2xl"
+            style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
+            <div className="px-6 pb-8 max-h-[70vh] overflow-y-auto">
+              <div className="flex items-center justify-between py-3 border-b mb-4">
+                <h3 className="font-bold text-lg">Order Details</h3>
+                <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  {selected.products?.images?.[0] && (
+                    <img src={selected.products.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                  )}
+                  <div>
+                    <p className="font-bold">{selected.products?.name}</p>
+                    <p className="text-2xl font-extrabold text-purple-600">₹{selected.amount}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-bold">{selected.order_id}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor(selected.status)}`}>
+                      {selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}
+                    </span>
+                  </div>
+                  {selected.size && <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{selected.size}</span></div>}
+                  {selected.quantity && <div className="flex justify-between"><span className="text-muted-foreground">Qty</span><span>{selected.quantity}</span></div>}
+                  <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{new Date(selected.created_at).toLocaleDateString("en-IN")}</span></div>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-1">
+                  <p className="font-medium mb-2">Delivery Address</p>
+                  <p>{selected.buyer_name} · {selected.buyer_phone}</p>
+                  <p className="text-muted-foreground">{selected.full_address}, {selected.city}, {selected.state_name} – {selected.pincode}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
+  const { buyerSession, buyerProfile, refreshProfile } = useBuyerAuth();
+  const [form, setForm] = useState({
+    full_name: buyerProfile?.full_name ?? "",
+    phone: buyerProfile?.phone ?? "",
+    default_address: buyerProfile?.default_address ?? "",
+    default_city: buyerProfile?.default_city ?? "",
+    default_state: buyerProfile?.default_state ?? "",
+    default_pincode: buyerProfile?.default_pincode ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const handleSave = async () => {
+    if (!buyerSession) return;
+    setSaving(true);
+    await supabase.from("buyers").update(form).eq("id", buyerSession.user.id);
+    await refreshProfile();
+    setSaving(false);
+    toast.success("Profile saved!");
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl"
+        style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
+        <div className="px-6 pb-8 max-h-[85vh] overflow-y-auto">
+          <div className="flex items-center justify-between py-3 border-b mb-5">
+            <h2 className="text-xl font-bold">My Profile</h2>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Full Name</label>
+              <Input value={form.full_name} onChange={set("full_name")} placeholder="Your full name"
+                className="rounded-lg text-base focus-visible:ring-purple-500" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Phone Number</label>
+              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                placeholder="10-digit number" inputMode="numeric" maxLength={10}
+                className="rounded-lg text-base focus-visible:ring-purple-500" />
+            </div>
+            <div className="pt-2 border-t">
+              <p className="font-semibold text-sm mb-3">Default Delivery Address</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Address</label>
+                  <Input value={form.default_address} onChange={set("default_address")} placeholder="House No., Street, Area" className="rounded-lg text-base focus-visible:ring-purple-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">City</label>
+                    <Input value={form.default_city} onChange={set("default_city")} placeholder="Mumbai" className="rounded-lg text-base focus-visible:ring-purple-500" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Pincode</label>
+                    <Input value={form.default_pincode} onChange={e => setForm(f => ({ ...f, default_pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                      placeholder="400001" inputMode="numeric" maxLength={6} className="rounded-lg text-base focus-visible:ring-purple-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">State</label>
+                  <Input value={form.default_state} onChange={set("default_state")} placeholder="Maharashtra" className="rounded-lg text-base focus-visible:ring-purple-500" />
+                </div>
+              </div>
+            </div>
+            <Button onClick={handleSave} disabled={saving} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

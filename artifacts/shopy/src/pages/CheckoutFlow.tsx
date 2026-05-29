@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Check, Upload, X } from "lucide-react";
+import { ArrowLeft, Copy, Check, Upload, X, CheckCircle2 } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useBuyerAuth } from "@/lib/buyer-auth-context";
+import { BuyerAuthModal } from "@/components/BuyerAuthModal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -78,6 +80,8 @@ function ProductStep({ product, shop, onProceed, onBack }: {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sizeError, setSizeError] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const { buyerSession } = useBuyerAuth();
 
   const images = product.images?.filter(Boolean) ?? [];
   const total = product.price * quantity;
@@ -167,16 +171,26 @@ function ProductStep({ product, shop, onProceed, onBack }: {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t px-4 py-4">
-        <div className="flex items-center gap-4 max-w-lg mx-auto">
-          <div>
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-xl font-bold text-primary">₹{total}</p>
+        <div className="flex flex-col gap-2 max-w-lg mx-auto">
+          {!buyerSession && (
+            <p className="text-xs text-center text-muted-foreground">
+              <button onClick={() => setAuthOpen(true)} className="text-purple-600 font-medium hover:underline">Login</button>
+              {" "}to track your orders and auto-fill your address
+            </p>
+          )}
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-xl font-bold text-primary">₹{total}</p>
+            </div>
+            <Button className="flex-1 rounded-full h-12 text-base" onClick={handleBuyNow}>
+              Buy Now
+            </Button>
           </div>
-          <Button className="flex-1 rounded-full h-12 text-base" onClick={handleBuyNow}>
-            Buy Now
-          </Button>
         </div>
       </div>
+
+      <BuyerAuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab="login" />
     </div>
   );
 }
@@ -188,8 +202,25 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
   onProceed: (buyer: BuyerData) => void;
   onBack: () => void;
 }) {
-  const [form, setForm] = useState<BuyerData>(initialData);
-  const [errors, setErrors] = useState<Partial<Record<keyof BuyerData, string>>>({});
+  const { buyerProfile } = useBuyerAuth();
+  const hasSavedAddress = !!(buyerProfile?.default_address);
+  const [usingSaved, setUsingSaved] = useState(hasSavedAddress);
+
+  const buildFormFromProfile = (profile: typeof buyerProfile): BuyerData => ({
+    name: profile?.full_name ?? initialData.name,
+    phone: profile?.phone ?? initialData.phone,
+    email: initialData.email,
+    address: profile?.default_address ?? initialData.address,
+    city: profile?.default_city ?? initialData.city,
+    pincode: profile?.default_pincode ?? initialData.pincode,
+    state: profile?.default_state ?? initialData.state,
+    instructions: initialData.instructions,
+  });
+
+  const [form, setForm] = useState<BuyerData>(
+    hasSavedAddress ? buildFormFromProfile(buyerProfile) : initialData
+  );
+  const [errors, setErrors] = useState<Partial<Record<keyof BuyerData, string>>>({}); 
 
   const set = (key: keyof BuyerData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -235,6 +266,21 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
             <p className="font-bold text-primary">₹{total}</p>
           </div>
         </div>
+
+        {hasSavedAddress && (
+          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm">
+            <span className="flex items-center gap-1.5 text-green-700 font-medium">
+              <CheckCircle2 className="w-4 h-4" /> Using saved address
+            </span>
+            <button
+              type="button"
+              onClick={() => { setUsingSaved(false); setForm(initialData); }}
+              className="text-purple-600 hover:underline text-xs font-medium"
+            >
+              {usingSaved ? "Edit" : ""}
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -567,6 +613,7 @@ export default function CheckoutFlow({ shopSlug, productId }: { shopSlug: string
   const [buyer, setBuyer] = useState<BuyerData>({ name: "", phone: "", email: "", address: "", city: "", pincode: "", state: "", instructions: "" });
   const [orderId] = useState(() => generateOrderId());
   const [, navigate] = useLocation();
+  const { buyerSession } = useBuyerAuth();
 
   useEffect(() => {
     async function load() {
@@ -606,6 +653,7 @@ export default function CheckoutFlow({ shopSlug, productId }: { shopSlug: string
       utr: utr,
       payment_screenshot_url: screenshotUrl,
       status: "pending",
+      buyer_id: buyerSession?.user.id ?? null,
     });
     if (error) throw new Error(error.message);
     setStep(4);

@@ -5,11 +5,12 @@ import { ProductDrawer } from "@/components/ProductDrawer";
 import { ReviewSection } from "@/components/ReviewSection";
 import { UTRForm } from "@/components/UTRForm";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { BadgeCheck, Instagram, MessageCircle, AlertCircle, Share2 } from "lucide-react";
+import { BadgeCheck, Instagram, AlertCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { BuyerAuthModal, BuyerAccountButton } from "@/components/BuyerAuthModal";
 
 export default function ShopPage({ slug }: { slug: string }) {
   const [, setLocation] = useLocation();
@@ -19,6 +20,8 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isNotFound, setIsNotFound] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
 
   useEffect(() => {
     async function loadData() {
@@ -121,7 +124,10 @@ export default function ShopPage({ slug }: { slug: string }) {
       )}
       <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 pb-24 space-y-12">
         {/* Header */}
-        <header className="text-center space-y-4">
+        <header className="text-center space-y-4 relative">
+          <div className="absolute right-0 top-0">
+            <BuyerAccountButton onOpenAuth={(tab = "login") => { setAuthModalTab(tab); setAuthModalOpen(true); }} />
+          </div>
           <div className="flex justify-center mb-2">
             <Badge variant="secondary" className="px-3 py-1 text-sm rounded-full">
               {shop.category || "Shop"}
@@ -223,6 +229,12 @@ export default function ShopPage({ slug }: { slug: string }) {
         onOrder={() => selectedProduct && setLocation(`/s/${slug}/product/${selectedProduct.id}`)}
         reviews={reviews}
         shopName={shop.shop_name}
+      />
+
+      <BuyerAuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab={authModalTab}
       />
     </div>
   );
