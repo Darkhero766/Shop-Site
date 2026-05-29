@@ -69,7 +69,7 @@ export function ProductDrawer({
     setSizeError(false);
     setShowCheckmark(false);
     emblaApi?.scrollTo(0);
-  }, [product]);
+  }, [product?.id]);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
@@ -107,21 +107,21 @@ export function ProductDrawer({
 
   if (!product) return null;
 
+  const images = product.images?.filter(Boolean) ?? [];
   const avgRating = reviews.length > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : null;
   const totalPrice = product.price * quantity;
   const mostRecentReview = reviews[0];
-  const currentImage = product.images?.[selectedIndex];
-  const images = product.images?.filter(Boolean) ?? [];
+  const currentImage = images[selectedIndex];
 
-  // ── Shared: Image Carousel ──────────────────────────────────────────────────
-  const ImageCarousel = ({ compact = false }: { compact?: boolean }) => (
+  // ── Shared carousel JSX (used in both mobile and desktop) ──
+  const carouselJSX = (
     <div className="relative bg-gray-50 rounded-xl overflow-hidden">
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
           {images.length > 0 ? (
             images.map((img, i) => (
               <div className="flex-[0_0_100%] min-w-0" key={i}>
-                <div className={compact ? "aspect-square" : "aspect-square"}>
+                <div className="aspect-square">
                   <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" draggable={false} />
                 </div>
               </div>
@@ -135,7 +135,6 @@ export function ProductDrawer({
           )}
         </div>
       </div>
-
       {imageCount > 1 && (
         <div className="absolute top-3 left-3 bg-black/60 text-white text-xs font-semibold px-2.5 py-1 rounded-full select-none">
           {selectedIndex + 1} / {imageCount}
@@ -163,36 +162,60 @@ export function ProductDrawer({
     </div>
   );
 
-  // ── Shared: Thumbnail Strip ─────────────────────────────────────────────────
-  const ThumbnailStrip = () => (
-    images.length > 1 ? (
-      <div className="overflow-hidden mt-2" ref={thumbEmblaRef}>
-        <div className="flex gap-2">
-          {images.map((img, i) => (
-            <button key={i} onClick={() => { emblaApi?.scrollTo(i); setSelectedIndex(i); }}
-              className={`flex-[0_0_64px] h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${i === selectedIndex ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"}`}>
-              <img src={img} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
-            </button>
-          ))}
-        </div>
-      </div>
-    ) : null
-  );
-
-  // ── Shared: Mobile dot indicators ──────────────────────────────────────────
-  const DotIndicators = () => (
-    imageCount > 1 ? (
-      <div className="flex justify-center gap-1.5 py-3">
-        {product.images!.map((_, i) => (
-          <button key={i} onClick={() => emblaApi?.scrollTo(i)} aria-label={`Go to image ${i + 1}`}
-            className={`rounded-full transition-all duration-300 ${i === selectedIndex ? "w-5 h-2 bg-primary" : "w-2 h-2 bg-gray-300 hover:bg-gray-400"}`} />
+  // ── Thumbnail strip ──
+  const thumbnailsJSX = images.length > 1 ? (
+    <div className="overflow-hidden mt-2" ref={thumbEmblaRef}>
+      <div className="flex gap-2">
+        {images.map((img, i) => (
+          <button key={i} onClick={() => { emblaApi?.scrollTo(i); }}
+            className={`flex-[0_0_64px] h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${i === selectedIndex ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"}`}>
+            <img src={img} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
+          </button>
         ))}
       </div>
-    ) : null
+    </div>
+  ) : null;
+
+  // ── Mobile dot indicators ──
+  const dotsJSX = imageCount > 1 ? (
+    <div className="flex justify-center gap-1.5 py-3">
+      {images.map((_, i) => (
+        <button key={i} onClick={() => emblaApi?.scrollTo(i)}
+          className={`rounded-full transition-all duration-300 ${i === selectedIndex ? "w-5 h-2 bg-primary" : "w-2 h-2 bg-gray-300 hover:bg-gray-400"}`} />
+      ))}
+    </div>
+  ) : null;
+
+  // ── Buy Now button ──
+  const buyButtonJSX = (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      onClick={handleOrder}
+      disabled={!product.in_stock || showCheckmark}
+      data-testid="drawer-order-btn"
+      className="w-full py-4 rounded-full text-white font-bold text-base flex items-center justify-center gap-2 shadow-xl relative overflow-hidden disabled:opacity-60"
+      style={{ background: product.in_stock ? "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)" : "#9CA3AF" }}
+    >
+      {!showCheckmark && product.in_stock && (
+        <span className="absolute inset-0 rounded-full animate-btn-pulse pointer-events-none" />
+      )}
+      <AnimatePresence mode="wait">
+        {showCheckmark ? (
+          <motion.span key="check" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-2">
+            <Check className="w-5 h-5" /> Done!
+          </motion.span>
+        ) : (
+          <motion.span key="buy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+            <Zap className="w-4 h-4 fill-yellow-300 text-yellow-300" />
+            {product.in_stock ? `Buy Now — ₹${totalPrice}` : "Out of Stock"}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 
-  // ── Shared: Product details (right panel / below image on mobile) ───────────
-  const ProductDetails = ({ inStickyFooter = false }: { inStickyFooter?: boolean }) => (
+  // ── Product details panel (right side on desktop, below image on mobile) ──
+  const detailsJSX = (
     <div className="space-y-4">
       <h2 className="text-xl md:text-2xl font-bold leading-tight" data-testid="drawer-product-name">
         {product.name}
@@ -253,7 +276,6 @@ export function ProductDrawer({
 
       <div className="border-t border-gray-100" />
 
-      {/* Quantity */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold">Quantity</span>
         <div className="flex items-center gap-3">
@@ -269,33 +291,8 @@ export function ProductDrawer({
         </div>
       </div>
 
-      {/* Buy Now button */}
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        onClick={handleOrder}
-        disabled={!product.in_stock || showCheckmark}
-        data-testid="drawer-order-btn"
-        className="w-full py-4 rounded-full text-white font-bold text-base flex items-center justify-center gap-2 shadow-xl relative overflow-hidden disabled:opacity-60"
-        style={{ background: product.in_stock ? "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)" : "#9CA3AF" }}
-      >
-        {!showCheckmark && product.in_stock && (
-          <span className="absolute inset-0 rounded-full animate-btn-pulse pointer-events-none" />
-        )}
-        <AnimatePresence mode="wait">
-          {showCheckmark ? (
-            <motion.span key="check" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-2">
-              <Check className="w-5 h-5" /> Done!
-            </motion.span>
-          ) : (
-            <motion.span key="buy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
-              <Zap className="w-4 h-4 fill-yellow-300 text-yellow-300" />
-              {product.in_stock ? `Buy Now — ₹${totalPrice}` : "Out of Stock"}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
+      {buyButtonJSX}
 
-      {/* Trust badges */}
       <div className="flex items-center justify-around py-3 border-y border-gray-100 text-xs text-muted-foreground">
         <div className="flex flex-col items-center gap-1">
           <Shield className="w-5 h-5 text-gray-400" /><span>Secure UPI</span>
@@ -326,7 +323,7 @@ export function ProductDrawer({
                   <Star key={i} className={`w-3.5 h-3.5 ${i < Math.round(avgRating ?? 0) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
                 ))}
               </div>
-              <span className="text-xs font-semibold text-foreground">({reviews.length} {reviews.length === 1 ? "review" : "reviews"})</span>
+              <span className="text-xs font-semibold">({reviews.length} {reviews.length === 1 ? "review" : "reviews"})</span>
             </div>
             {mostRecentReview?.review_text && (
               <p className="text-xs text-muted-foreground line-clamp-2">
@@ -342,8 +339,8 @@ export function ProductDrawer({
     </div>
   );
 
-  // ── Fullscreen image overlay ────────────────────────────────────────────────
-  const FullscreenOverlay = () => (
+  // ── Fullscreen overlay (shared) ──
+  const fullscreenJSX = (
     <AnimatePresence>
       {fullscreenImg && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -352,17 +349,17 @@ export function ProductDrawer({
           <button className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center" onClick={() => setFullscreenImg(null)}>
             <X className="w-5 h-5 text-white" />
           </button>
-          <img src={fullscreenImg} alt="Fullscreen view" className="max-w-full max-h-full object-contain" style={{ touchAction: "pinch-zoom" }} onClick={e => e.stopPropagation()} />
+          <img src={fullscreenImg} alt="Fullscreen" className="max-w-full max-h-full object-contain" style={{ touchAction: "pinch-zoom" }} onClick={e => e.stopPropagation()} />
         </motion.div>
       )}
     </AnimatePresence>
   );
 
-  // ── MOBILE: bottom drawer ───────────────────────────────────────────────────
+  // ── MOBILE: bottom drawer ──
   if (isMobile) {
     return (
       <>
-        <FullscreenOverlay />
+        {fullscreenJSX}
         <Drawer open={isOpen} onOpenChange={open => !open && onClose()}>
           <DrawerContent className="h-[92vh] flex flex-col p-0 overflow-hidden focus:outline-none">
             <DrawerTitle className="sr-only">Product details for {product.name}</DrawerTitle>
@@ -379,15 +376,13 @@ export function ProductDrawer({
             </div>
 
             <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-                <div className="relative bg-gray-50">
-                  <ImageCarousel />
-                  <DotIndicators />
-                </div>
-                <div className="px-4 pt-5 pb-6 space-y-4">
-                  <ProductDetails />
-                </div>
-              </motion.div>
+              <div className="relative bg-gray-50">
+                {carouselJSX}
+                {dotsJSX}
+              </div>
+              <div className="px-4 pt-5 pb-6 space-y-4">
+                {detailsJSX}
+              </div>
             </div>
           </DrawerContent>
         </Drawer>
@@ -395,55 +390,57 @@ export function ProductDrawer({
     );
   }
 
-  // ── DESKTOP / TABLET: centered dialog with two-column layout ────────────────
+  // ── DESKTOP / TABLET: centered two-column dialog ──
   return (
     <>
-      <FullscreenOverlay />
+      {fullscreenJSX}
       <AnimatePresence>
         {isOpen && (
           <>
-            <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              key="dialog"
-              initial={{ opacity: 0, scale: 0.96, y: "-48%" }}
-              animate={{ opacity: 1, scale: 1, y: "-50%" }}
-              exit={{ opacity: 0, scale: 0.96, y: "-48%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="fixed left-1/2 top-1/2 z-50 bg-white rounded-2xl shadow-2xl overflow-hidden"
-              style={{ width: "min(900px, calc(100vw - 48px))", maxHeight: "min(88vh, 700px)", transform: "translateX(-50%) translateY(-50%)" }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Header bar */}
-              <div className="flex items-center justify-between px-6 py-4 border-b bg-white shrink-0">
-                {shopName && <span className="text-sm font-medium text-muted-foreground">{shopName}</span>}
-                <div className="flex items-center gap-2 ml-auto">
-                  <button onClick={handleShare}
-                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" aria-label="Share">
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={onClose}
-                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" aria-label="Close">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Two-column body */}
-              <div className="grid grid-cols-[45%_55%] h-[calc(100%-57px)] overflow-hidden">
-                {/* Left: image + thumbnails */}
-                <div className="bg-gray-50 p-5 flex flex-col overflow-y-auto border-r">
-                  <ImageCarousel />
-                  <ThumbnailStrip />
+              key="backdrop"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+              onClick={onClose}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
+              <motion.div
+                key="dialog"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto w-full"
+                style={{ maxWidth: 900, maxHeight: "88vh" }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+                  {shopName && <span className="text-sm font-medium text-muted-foreground">{shopName}</span>}
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button onClick={handleShare} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" aria-label="Share">
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" aria-label="Close">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Right: product details, scrollable */}
-                <div className="overflow-y-auto p-6">
-                  <ProductDetails />
-                  <div className="h-4" />
+                {/* Two-column body */}
+                <div className="grid grid-cols-[45%_55%] overflow-hidden" style={{ maxHeight: "calc(88vh - 57px)" }}>
+                  {/* Left: image + thumbnails */}
+                  <div className="bg-gray-50 p-5 flex flex-col overflow-y-auto border-r">
+                    {carouselJSX}
+                    {thumbnailsJSX}
+                  </div>
+                  {/* Right: details */}
+                  <div className="overflow-y-auto p-6 pb-8">
+                    {detailsJSX}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
