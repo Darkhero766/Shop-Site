@@ -302,7 +302,7 @@ export default function DashboardPage() {
                 <div className="flex-1">
                   <p className="font-bold text-amber-800 mb-1">Your store is pending approval</p>
                   <p className="text-sm text-amber-700">
-                    {userEmail === import.meta.env.VITE_ADMIN_EMAIL
+                    {session?.user?.app_metadata?.role === "admin"
                       ? <>You are the admin — go to the Admin Panel and click <strong>Approve</strong> next to this store. URL: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span></>
                       : <>Your store is under review. An admin will activate it shortly. Your future URL: <span className="font-mono font-bold">{shop.subdomain}.shopgram.in</span></>
                     }
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                       Preview store
                     </Button>
                   </a>
-                  {userEmail === import.meta.env.VITE_ADMIN_EMAIL && (
+                  {session?.user?.app_metadata?.role === "admin" && (
                     <Link href="/admin">
                       <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white">
                         Go to Admin Panel

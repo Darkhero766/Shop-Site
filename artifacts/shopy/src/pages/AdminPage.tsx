@@ -26,17 +26,10 @@ export default function AdminPage() {
     }
 
     const user = session.user;
-    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? "").trim().toLowerCase();
-    const userEmail = (user.email ?? "").trim().toLowerCase();
+    const isAdmin = user.app_metadata?.role === "admin";
 
-    if (!adminEmail) {
-      toast.error("Admin email not configured — check VITE_ADMIN_EMAIL env var");
-      setLocation("/");
-      return;
-    }
-
-    if (userEmail !== adminEmail) {
-      toast.error(`Access denied. Logged in as: ${user.email}`);
+    if (!isAdmin) {
+      toast.error("Access denied. You are not an admin.");
       setLocation("/");
       return;
     }
