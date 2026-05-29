@@ -3,7 +3,6 @@ import { supabase, Shop, Product, Review } from "@/lib/supabase";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductDrawer } from "@/components/ProductDrawer";
 import { ReviewSection } from "@/components/ReviewSection";
-import { UTRForm } from "@/components/UTRForm";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { BadgeCheck, Instagram, AlertCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -179,34 +178,32 @@ export default function ShopPage({ slug }: { slug: string }) {
         </section>
 
         {/* Payment & Ordering */}
-        <section className="bg-primary/5 border border-primary/20 rounded-3xl p-6 md:p-10 space-y-8">
+        <section className="bg-primary/5 border border-primary/20 rounded-3xl p-6 md:p-10">
           <div className="text-center max-w-lg mx-auto">
-            <h2 className="text-3xl font-bold mb-4">How to order</h2>
-            <ol className="text-left text-muted-foreground space-y-3 mb-8">
-              <li className="flex gap-3"><span className="font-bold text-primary">1.</span> Select your products and chat with us on WhatsApp to confirm availability.</li>
-              <li className="flex gap-3"><span className="font-bold text-primary">2.</span> Scan the QR code below and pay the total amount.</li>
-              <li className="flex gap-3"><span className="font-bold text-primary">3.</span> Submit your 12-digit UTR reference number in the form below.</li>
-            </ol>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-10 items-start">
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-sm border border-border">
-              <h3 className="font-semibold text-lg mb-4">Scan to Pay</h3>
-              {shop.upi_qr_url ? (
-                <img src={shop.upi_qr_url} alt="UPI QR" className="w-48 h-48 md:w-64 md:h-64 object-contain rounded-xl mb-4" />
-              ) : (
-                <div className="w-48 h-48 md:w-64 md:h-64 bg-muted rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-muted-foreground text-sm">No QR provided</span>
+            <h2 className="text-3xl font-bold mb-6">How to order</h2>
+            <ol className="text-left space-y-5">
+              <li className="flex gap-4 items-start">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">1</span>
+                <div>
+                  <p className="font-semibold text-foreground">Select a product and tap Buy Now</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Browse the catalog, choose your size and quantity, then hit Buy Now.</p>
                 </div>
-              )}
-              {shop.upi_id && (
-                <p className="font-medium text-lg font-mono bg-muted px-4 py-2 rounded-lg break-all text-center w-full">
-                  {shop.upi_id}
-                </p>
-              )}
-            </div>
-
-            <UTRForm shopId={shop.id} products={products} />
+              </li>
+              <li className="flex gap-4 items-start">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">2</span>
+                <div>
+                  <p className="font-semibold text-foreground">Scan QR code &amp; complete payment</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Scan the UPI QR shown during checkout and pay the exact amount.</p>
+                </div>
+              </li>
+              <li className="flex gap-4 items-start">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">3</span>
+                <div>
+                  <p className="font-semibold text-foreground">Upload payment proof or enter UTR</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Take a screenshot of the payment or enter the 12-digit UTR number to confirm your order.</p>
+                </div>
+              </li>
+            </ol>
           </div>
         </section>
 
