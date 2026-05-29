@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, X, User, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 type Tab = "login" | "signup";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : true
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isMobile;
+}
 
 function PasswordInput({
   value, onChange, placeholder, error,
@@ -182,63 +195,118 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-export function BuyerAuthModal({ open, onClose, defaultTab = "login" }: {
-  open: boolean; onClose: () => void; defaultTab?: Tab;
+function AdaptiveSheet({
+  open, onClose, children, maxHeight = "85vh",
+}: {
+  open: boolean; onClose: () => void; children: React.ReactNode; maxHeight?: string;
 }) {
-  const [tab, setTab] = useState<Tab>(defaultTab);
+  const isMobile = useIsMobile();
+
+  const mobileVariants = {
+    hidden: { y: "100%" },
+    visible: { y: 0 },
+    exit: { y: "100%" },
+  };
+
+  const desktopVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: "-48%" },
+    visible: { opacity: 1, scale: 1, y: "-50%" },
+    exit: { opacity: 0, scale: 0.95, y: "-48%" },
+  };
 
   return (
     <AnimatePresence>
       {open && (
         <>
           <motion.div
+            key="backdrop"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-40"
             onClick={onClose}
           />
-          <motion.div
-            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[480px] bg-white rounded-t-[24px] shadow-2xl"
-            style={{ left: "50%", transform: "translateX(-50%) translateY(0)", maxWidth: "480px", width: "100%" }}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-gray-300" />
-            </div>
-            <div className="px-6 pb-8 max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-5 pt-2">
-                <h2 className="text-xl font-bold">My Account</h2>
-                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
+          {isMobile ? (
+            <motion.div
+              key="sheet-mobile"
+              variants={mobileVariants}
+              initial="hidden" animate="visible" exit="exit"
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl"
+              style={{ maxWidth: 480, width: "100%", marginLeft: "auto", marginRight: "auto", left: 0, right: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-300" />
               </div>
-
-              <div className="flex border-b mb-5">
-                {(["login", "signup"] as Tab[]).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setTab(t)}
-                    className={`flex-1 pb-2 text-sm font-semibold transition-colors capitalize ${
-                      tab === t
-                        ? "border-b-2 border-purple-600 text-purple-600"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Login" : "Sign Up"}
-                  </button>
-                ))}
+              <div style={{ maxHeight }} className="overflow-y-auto">
+                {children}
               </div>
-
-              {tab === "login" ? (
-                <LoginForm onSuccess={onClose} />
-              ) : (
-                <SignupForm onSuccess={onClose} />
-              )}
-            </div>
-          </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="sheet-desktop"
+              variants={desktopVariants}
+              initial="hidden" animate="visible" exit="exit"
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="fixed left-1/2 top-1/2 z-50 bg-white rounded-2xl shadow-2xl"
+              style={{
+                width: "min(480px, calc(100vw - 32px))",
+                maxHeight: "min(90vh, 720px)",
+                transform: "translateX(-50%) translateY(-50%)",
+                overflowY: "auto",
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {children}
+            </motion.div>
+          )}
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+export function BuyerAuthModal({ open, onClose, defaultTab = "login" }: {
+  open: boolean; onClose: () => void; defaultTab?: Tab;
+}) {
+  const [tab, setTab] = useState<Tab>(defaultTab);
+
+  useEffect(() => {
+    if (open) setTab(defaultTab);
+  }, [open, defaultTab]);
+
+  return (
+    <AdaptiveSheet open={open} onClose={onClose} maxHeight="85vh">
+      <div className="px-6 pb-8">
+        <div className="flex items-center justify-between mb-5 pt-4">
+          <h2 className="text-xl font-bold">My Account</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex border-b mb-5">
+          {(["login", "signup"] as Tab[]).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 pb-2 text-sm font-semibold transition-colors capitalize ${
+                tab === t
+                  ? "border-b-2 border-purple-600 text-purple-600"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "login" ? "Login" : "Sign Up"}
+            </button>
+          ))}
+        </div>
+
+        {tab === "login" ? (
+          <LoginForm onSuccess={onClose} />
+        ) : (
+          <SignupForm onSuccess={onClose} />
+        )}
+      </div>
+    </AdaptiveSheet>
   );
 }
 
@@ -336,24 +404,13 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
     "bg-yellow-100 text-yellow-700";
 
   return (
-    <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <motion.div
-        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl max-h-[85vh] flex flex-col"
-        style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
-        </div>
-        <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+    <>
+      <AdaptiveSheet open={true} onClose={onClose} maxHeight="80vh">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-xl font-bold">My Orders</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-3">
           {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-purple-600" /></div>}
           {!loading && orders.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
@@ -381,57 +438,44 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-      </motion.div>
+      </AdaptiveSheet>
 
       {selected && (
-        <AnimatePresence>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50" onClick={() => setSelected(null)} />
-          <motion.div
-            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[24px] shadow-2xl"
-            style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-            <div className="px-6 pb-8 max-h-[70vh] overflow-y-auto">
-              <div className="flex items-center justify-between py-3 border-b mb-4">
-                <h3 className="font-bold text-lg">Order Details</h3>
-                <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  {selected.products?.images?.[0] && (
-                    <img src={selected.products.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover" />
-                  )}
-                  <div>
-                    <p className="font-bold">{selected.products?.name}</p>
-                    <p className="text-2xl font-extrabold text-purple-600">₹{selected.amount}</p>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-bold">{selected.order_id}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor(selected.status)}`}>
-                      {selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}
-                    </span>
-                  </div>
-                  {selected.size && <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{selected.size}</span></div>}
-                  {selected.quantity && <div className="flex justify-between"><span className="text-muted-foreground">Qty</span><span>{selected.quantity}</span></div>}
-                  <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{new Date(selected.created_at).toLocaleDateString("en-IN")}</span></div>
-                </div>
-                <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-1">
-                  <p className="font-medium mb-2">Delivery Address</p>
-                  <p>{selected.buyer_name} · {selected.buyer_phone}</p>
-                  <p className="text-muted-foreground">{selected.full_address}, {selected.city}, {selected.state_name} – {selected.pincode}</p>
-                </div>
+        <AdaptiveSheet open={true} onClose={() => setSelected(null)} maxHeight="75vh">
+          <div className="flex items-center justify-between px-6 py-4 border-b mb-4">
+            <h3 className="font-bold text-lg">Order Details</h3>
+            <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="px-6 pb-8 space-y-4">
+            <div className="flex items-center gap-3">
+              {selected.products?.images?.[0] && (
+                <img src={selected.products.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover" />
+              )}
+              <div>
+                <p className="font-bold">{selected.products?.name}</p>
+                <p className="text-2xl font-extrabold text-purple-600">₹{selected.amount}</p>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-bold">{selected.order_id}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor(selected.status)}`}>
+                  {selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}
+                </span>
+              </div>
+              {selected.size && <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{selected.size}</span></div>}
+              {selected.quantity && <div className="flex justify-between"><span className="text-muted-foreground">Qty</span><span>{selected.quantity}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{new Date(selected.created_at).toLocaleDateString("en-IN")}</span></div>
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-1">
+              <p className="font-medium mb-2">Delivery Address</p>
+              <p>{selected.buyer_name} · {selected.buyer_phone}</p>
+              <p className="text-muted-foreground">{selected.full_address}, {selected.city}, {selected.state_name} – {selected.pincode}</p>
+            </div>
+          </div>
+        </AdaptiveSheet>
       )}
-    </AnimatePresence>
+    </>
   );
 }
 
@@ -447,8 +491,11 @@ function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
   });
   const [saving, setSaving] = useState(false);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = useCallback(
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value })),
+    []
+  );
 
   const handleSave = async () => {
     if (!buyerSession) return;
@@ -461,64 +508,55 @@ function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <motion.div
-        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl"
-        style={{ left: "50%", transform: "translateX(-50%)", maxWidth: "480px", width: "100%" }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-        <div className="px-6 pb-8 max-h-[85vh] overflow-y-auto">
-          <div className="flex items-center justify-between py-3 border-b mb-5">
-            <h2 className="text-xl font-bold">My Profile</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="space-y-4">
+    <AdaptiveSheet open={true} onClose={onClose} maxHeight="85vh">
+      <div className="flex items-center justify-between px-6 py-4 border-b mb-5">
+        <h2 className="text-xl font-bold">My Profile</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+      </div>
+      <div className="px-6 pb-8 space-y-4">
+        <div>
+          <label className="text-sm font-medium mb-1 block">Full Name</label>
+          <Input value={form.full_name} onChange={set("full_name")} placeholder="Your full name"
+            className="rounded-lg text-base focus-visible:ring-purple-500" />
+        </div>
+        <div>
+          <label className="text-sm font-medium mb-1 block">Phone Number</label>
+          <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+            placeholder="10-digit number" inputMode="numeric" maxLength={10}
+            className="rounded-lg text-base focus-visible:ring-purple-500" />
+        </div>
+        <div className="pt-2 border-t">
+          <p className="font-semibold text-sm mb-3">Default Delivery Address</p>
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1 block">Full Name</label>
-              <Input value={form.full_name} onChange={set("full_name")} placeholder="Your full name"
+              <label className="text-sm font-medium mb-1 block">Address</label>
+              <Input value={form.default_address} onChange={set("default_address")} placeholder="House No., Street, Area"
                 className="rounded-lg text-base focus-visible:ring-purple-500" />
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Phone Number</label>
-              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                placeholder="10-digit number" inputMode="numeric" maxLength={10}
-                className="rounded-lg text-base focus-visible:ring-purple-500" />
-            </div>
-            <div className="pt-2 border-t">
-              <p className="font-semibold text-sm mb-3">Default Delivery Address</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Address</label>
-                  <Input value={form.default_address} onChange={set("default_address")} placeholder="House No., Street, Area" className="rounded-lg text-base focus-visible:ring-purple-500" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">City</label>
-                    <Input value={form.default_city} onChange={set("default_city")} placeholder="Mumbai" className="rounded-lg text-base focus-visible:ring-purple-500" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Pincode</label>
-                    <Input value={form.default_pincode} onChange={e => setForm(f => ({ ...f, default_pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                      placeholder="400001" inputMode="numeric" maxLength={6} className="rounded-lg text-base focus-visible:ring-purple-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">State</label>
-                  <Input value={form.default_state} onChange={set("default_state")} placeholder="Maharashtra" className="rounded-lg text-base focus-visible:ring-purple-500" />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">City</label>
+                <Input value={form.default_city} onChange={set("default_city")} placeholder="Mumbai"
+                  className="rounded-lg text-base focus-visible:ring-purple-500" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Pincode</label>
+                <Input value={form.default_pincode} onChange={e => setForm(f => ({ ...f, default_pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                  placeholder="400001" inputMode="numeric" maxLength={6}
+                  className="rounded-lg text-base focus-visible:ring-purple-500" />
               </div>
             </div>
-            <Button onClick={handleSave} disabled={saving} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
-            </Button>
+            <div>
+              <label className="text-sm font-medium mb-1 block">State</label>
+              <Input value={form.default_state} onChange={set("default_state")} placeholder="Maharashtra"
+                className="rounded-lg text-base focus-visible:ring-purple-500" />
+            </div>
           </div>
         </div>
-      </motion.div>
-    </AnimatePresence>
+        <Button onClick={handleSave} disabled={saving} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11 mt-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+        </Button>
+      </div>
+    </AdaptiveSheet>
   );
 }
