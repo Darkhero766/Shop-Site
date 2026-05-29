@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { supabase, Shop, Product, Order, Review, uploadImage } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import {
   Store, LogOut, Package, ShoppingBag, Star, LayoutDashboard,
   Copy, Check, Plus, Trash2, Pencil, X, Settings as SettingsIcon
@@ -26,6 +27,7 @@ const emptyForm: ProductForm = { name: "", price: 0, description: "", sizes: "" 
 
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
+  const { session, loading: authLoading } = useAuth();
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -51,12 +53,14 @@ export default function DashboardPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLocation("/login"); return; }
-      const user = session.user;
-      setUserEmail(user.email ?? "");
+    // Wait until auth has resolved — avoids false redirects while session loads
+    if (authLoading) return;
+    if (!session) { setLocation("/login"); return; }
 
+    const user = session.user;
+    setUserEmail(user.email ?? "");
+
+    async function loadData() {
       try {
         const { data: shopData } = await supabase.from("shops").select("*").eq("email", user.email).maybeSingle();
         if (!shopData) { toast.error("Shop not found"); setIsLoading(false); return; }
@@ -84,7 +88,7 @@ export default function DashboardPage() {
       }
     }
     loadData();
-  }, [setLocation]);
+  }, [authLoading, session, setLocation]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

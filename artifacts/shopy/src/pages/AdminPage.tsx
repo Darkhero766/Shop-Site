@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase, Shop } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { ShieldAlert, Store, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,43 +11,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminPage() {
   const [, setLocation] = useLocation();
+  const { session, loading: authLoading } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function verifyAndLoad() {
-      const { data: { session } } = await supabase.auth.getSession();
+    // Wait until auth has resolved — avoids false redirects while session loads
+    if (authLoading) return;
 
-      if (!session) {
-        toast.error("Please log in first");
-        setLocation("/login");
-        return;
-      }
+    if (!session) {
+      toast.error("Please log in first");
+      setLocation("/login");
+      return;
+    }
 
-      const user = session.user;
-      const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? "").trim().toLowerCase();
-      const userEmail = (user.email ?? "").trim().toLowerCase();
+    const user = session.user;
+    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? "").trim().toLowerCase();
+    const userEmail = (user.email ?? "").trim().toLowerCase();
 
-      if (!adminEmail) {
-        toast.error("Admin email not configured — check VITE_ADMIN_EMAIL env var");
-        setLocation("/");
-        return;
-      }
+    if (!adminEmail) {
+      toast.error("Admin email not configured — check VITE_ADMIN_EMAIL env var");
+      setLocation("/");
+      return;
+    }
 
-      if (userEmail !== adminEmail) {
-        toast.error(`Access denied. Logged in as: ${user.email}`);
-        setLocation("/");
-        return;
-      }
+    if (userEmail !== adminEmail) {
+      toast.error(`Access denied. Logged in as: ${user.email}`);
+      setLocation("/");
+      return;
+    }
 
+    async function loadShops() {
       const { data, error } = await supabase.from("shops").select("*").order("created_at", { ascending: false });
       if (!error && data) {
         setShops(data);
       }
       setIsLoading(false);
     }
-    verifyAndLoad();
-  }, [setLocation]);
+    loadShops();
+  }, [authLoading, session, setLocation]);
 
   const updateStatus = async (id: string, status: "active" | "suspended") => {
     const { error } = await supabase.from("shops").update({ status }).eq("id", id);
