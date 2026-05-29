@@ -36,12 +36,16 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   const [buyerLoading, setBuyerLoading] = useState(true);
 
   async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from("buyers")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    setBuyerProfile(data ?? null);
+    try {
+      const { data } = await supabase
+        .from("buyers")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      setBuyerProfile(data ?? null);
+    } catch {
+      setBuyerProfile(null);
+    }
   }
 
   async function refreshProfile() {
@@ -55,16 +59,11 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setBuyerSession(session);
-      if (session?.user.id) {
-        await fetchProfile(session.user.id);
-      } else {
-        setBuyerProfile(null);
-      }
+      if (session?.user.id) fetchProfile(session.user.id);
       setBuyerLoading(false);
     });
-    return () => subscription.unsubscribe();
   }, []);
 
   return (
