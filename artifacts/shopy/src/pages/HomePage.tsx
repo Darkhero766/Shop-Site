@@ -1,9 +1,19 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Store, ShieldCheck, QrCode, ArrowRight, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth-context";
 
 export default function HomePage() {
+  const { session, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Redirect logged-in users straight to their dashboard
+  if (!loading && session) {
+    setLocation("/dashboard");
+    return null;
+  }
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background selection:bg-primary/20">
       <header className="py-6 px-6 md:px-12 flex items-center justify-between sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b">
