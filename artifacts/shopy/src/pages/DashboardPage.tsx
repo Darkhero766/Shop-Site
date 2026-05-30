@@ -845,8 +845,13 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1.5">WhatsApp Number</label>
-                        <Input value={settingsForm.whatsapp} onChange={e => setSettingsForm(p => ({ ...p, whatsapp: e.target.value }))}
-                          placeholder="+919876543210" data-testid="settings-whatsapp" />
+                        <div className="flex">
+                          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm select-none">+91</span>
+                          <Input className="rounded-l-none" inputMode="numeric" maxLength={10}
+                            value={settingsForm.whatsapp.replace(/^\+?91/, "")}
+                            onChange={e => setSettingsForm(p => ({ ...p, whatsapp: `+91${e.target.value.replace(/\D/g, "").slice(0, 10)}` }))}
+                            placeholder="9876543210" data-testid="settings-whatsapp" />
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1.5">UPI ID</label>

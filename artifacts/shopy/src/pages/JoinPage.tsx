@@ -19,7 +19,7 @@ const step1Schema = z.object({
   shop_name: z.string().min(2, "Shop name is required"),
   subdomain: z.string().min(2, "Subdomain is required"),
   insta_handle: z.string().startsWith("@", "Must start with @"),
-  whatsapp: z.string().regex(/^\+?91?[6789]\d{9}$/, "Valid Indian phone number required"),
+  whatsapp: z.string().regex(/^[6789]\d{9}$/, "Enter your 10-digit WhatsApp number"),
   category: z.string().min(1, "Select a category"),
   bio: z.string().max(150, "Max 150 characters").optional(),
   email: z.string().email("Invalid email"),
@@ -165,7 +165,7 @@ export default function JoinPage() {
         shop_name: s1.shop_name,
         subdomain: s1.subdomain,
         insta_handle: s1.insta_handle,
-        whatsapp: s1.whatsapp,
+        whatsapp: `+91${s1.whatsapp.replace(/^\+?91/, "")}`,
         category: s1.category,
         bio: s1.bio,
         email: s1.email,
@@ -278,7 +278,15 @@ export default function JoinPage() {
                   <FormField control={form1.control} name="whatsapp" render={({ field }) => (
                     <FormItem>
                       <FormLabel>WhatsApp Number</FormLabel>
-                      <FormControl><Input placeholder="9876543210" {...field} data-testid="input-whatsapp" /></FormControl>
+                      <FormControl>
+                        <div className="flex">
+                          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm select-none">+91</span>
+                          <Input className="rounded-l-none" placeholder="9876543210" maxLength={10} inputMode="numeric"
+                            {...field} value={field.value.replace(/^\+?91/, "")}
+                            onChange={e => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            data-testid="input-whatsapp" />
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}/>
