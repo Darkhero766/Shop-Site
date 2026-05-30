@@ -1,0 +1,91 @@
+Add a simple Plan & Billing section to both the seller dashboard and admin dashboard. No payment integration needed yet — just UI and database fields.
+Step 1 — Add columns to shops table in Supabase:
+sqlalter table shops add column if not exists plan text default 'trial';
+alter table shops add column if not exists trial_ends_at timestamptz default (now() + interval '30 days');
+alter table shops add column if not exists plan_started_at timestamptz;
+alter table shops add column if not exists plan_expires_at timestamptz;
+alter table shops add column if not exists plan_amount integer default 0;
+Step 2 — Seller Dashboard: add a Billing tab
+Add a new 'Billing' tab in the seller dashboard sidebar/nav alongside Overview, Products, Orders, Reviews, Settings.
+Billing tab shows one clean card with these sections:
+Current Plan section:
+
+Show plan name as a large badge:
+
+'Free Trial' in amber/yellow if plan = 'trial'
+'Pro' in green if plan = 'pro'
+'Expired' in red if plan = 'expired'
+
+
+Below badge show plan description:
+
+Trial: 'Your free trial ends on [trial_ends_at date formatted as DD MMM YYYY]'
+Pro: 'Your Pro plan is active until [plan_expires_at formatted as DD MMM YYYY]'
+Expired: 'Your plan expired on [plan_expires_at]. Renew to keep your store active.'
+
+
+Show a countdown for trial: 'X days remaining' in large bold number
+
+If less than 7 days remaining show it in red with a warning icon
+If more than 7 days show it in amber
+
+
+
+Plan features list:
+Show a simple checklist of what they have:
+✅ Your own store page
+✅ Unlimited products
+✅ UPI QR payment
+✅ Verified buyer reviews
+✅ Custom subdomain (shopname.shopgram.in)
+Upgrade section at bottom:
+
+Show a purple gradient card with text: 'Continue after trial for just ₹99/month'
+List 3 benefits: Always-on store, Priority support, Analytics coming soon
+Big button: 'Upgrade to Pro — ₹99/month' — for now this button just shows a modal saying 'To upgrade contact us on WhatsApp or email: contact@shopgram.in'
+If plan is already 'pro' hide this upgrade section and show 'Thank you for being a Pro member 🎉' instead
+
+Payment History section:
+
+Simple table with columns: Date, Plan, Amount, Status
+If no payments yet show: 'No payment history yet'
+This will be populated later when Razorpay is integrated
+
+Step 3 — Admin Dashboard: add Plan column to shops list
+In the admin panel shops table add these columns:
+
+Plan: show badge (Trial/Pro/Expired) with color coding
+Trial Ends / Plan Expires: show the date
+Days Left: show number, red if under 7
+
+Also add a Plan filter above the shops table:
+All | Trial | Pro | Expired
+And give admin ability to manually set plan for any shop:
+
+In each shop row add an 'Edit Plan' button
+Opens a small modal with:
+
+Plan selector: Trial / Pro / Expired (dropdown)
+Expiry date picker
+Amount paid field (₹)
+Save button — updates shops table in Supabase
+
+
+This is how you manually mark a seller as Pro after they pay you on WhatsApp/UPI
+
+Step 4 — Shop page warning banner
+If a seller's trial has expired (trial_ends_at is in the past and plan is still 'trial'), show a banner at the top of their shop subdomain page:
+
+Do NOT hide the shop — keep it fully visible
+Just show a small banner at very bottom of page in amber: 'This store's trial has ended. The seller is renewing soon.'
+This is gentle, does not scare buyers away
+
+Step 5 — Seller dashboard warning
+If trial expires, show a full-width amber banner at top of every dashboard tab:
+'Your free trial ended X days ago. Your store is still live. Upgrade to Pro to keep it running. [Upgrade Now] button'
+Design:
+
+Billing tab icon: credit card icon
+All plan badges: rounded-full, bold text, appropriate colors
+Countdown number: large font 48px bold
+Keep it simple and clean — no complex charts or graphs yet

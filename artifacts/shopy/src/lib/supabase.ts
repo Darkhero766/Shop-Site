@@ -29,7 +29,11 @@ export type Shop = {
   category: string | null;
   delivery_info: string | null;
   status: "pending" | "active" | "suspended";
-  plan: string;
+  plan: "trial" | "pro" | "expired";
+  trial_ends_at: string | null;
+  plan_started_at: string | null;
+  plan_expires_at: string | null;
+  plan_amount: number | null;
   created_at: string;
 };
 

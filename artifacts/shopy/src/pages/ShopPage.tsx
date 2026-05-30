@@ -33,36 +33,17 @@ export default function ShopPage({ slug }: { slug: string }) {
           .maybeSingle();
 
         if (shopErr) throw shopErr;
-        if (!shopData) {
-          setIsNotFound(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // Suspended shops show not-found
-        if (shopData.status === "suspended") {
-          setIsNotFound(true);
-          setIsLoading(false);
-          return;
-        }
+        if (!shopData) { setIsNotFound(true); setIsLoading(false); return; }
+        if (shopData.status === "suspended") { setIsNotFound(true); setIsLoading(false); return; }
 
         setShop(shopData);
 
         const { data: prodData } = await supabase
-          .from("products")
-          .select("*")
-          .eq("shop_id", shopData.id)
-          .eq("in_stock", true)
-          .order("created_at", { ascending: false });
-
+          .from("products").select("*").eq("shop_id", shopData.id).eq("in_stock", true).order("created_at", { ascending: false });
         if (prodData) setProducts(prodData);
 
         const { data: reviewData } = await supabase
-          .from("reviews")
-          .select("*")
-          .eq("shop_id", shopData.id)
-          .order("created_at", { ascending: false });
-
+          .from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false });
         if (reviewData) setReviews(reviewData);
       } catch (err) {
         console.error(err);
@@ -75,11 +56,7 @@ export default function ShopPage({ slug }: { slug: string }) {
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: shop?.shop_name,
-        text: `Check out ${shop?.shop_name} on Shopgram!`,
-        url: window.location.href,
-      }).catch(console.error);
+      navigator.share({ title: shop?.shop_name, text: `Check out ${shop?.shop_name} on Shopgram!`, url: window.location.href }).catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard");
@@ -109,6 +86,7 @@ export default function ShopPage({ slug }: { slug: string }) {
   if (!shop) return null;
 
   const isPending = shop.status === "pending";
+  const isTrialExpired = shop.plan === "trial" && shop.trial_ends_at && new Date(shop.trial_ends_at) < new Date();
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -121,6 +99,7 @@ export default function ShopPage({ slug }: { slug: string }) {
           </span>
         </div>
       )}
+
       <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 pb-24 space-y-12">
         {/* Header */}
         <header className="text-center space-y-4 relative">
@@ -128,25 +107,17 @@ export default function ShopPage({ slug }: { slug: string }) {
             <BuyerAccountButton onOpenAuth={(tab = "login") => { setAuthModalTab(tab); setAuthModalOpen(true); }} />
           </div>
           <div className="flex justify-center mb-2">
-            <Badge variant="secondary" className="px-3 py-1 text-sm rounded-full">
-              {shop.category || "Shop"}
-            </Badge>
+            <Badge variant="secondary" className="px-3 py-1 text-sm rounded-full">{shop.category || "Shop"}</Badge>
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight flex items-center justify-center gap-3">
             {shop.shop_name}
             <BadgeCheck className="text-emerald-500 w-8 h-8 shrink-0" data-testid="verified-badge" />
           </h1>
-          {shop.bio && (
-            <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed">{shop.bio}</p>
-          )}
+          {shop.bio && <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed">{shop.bio}</p>}
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <a 
-              href={`https://instagram.com/${shop.insta_handle?.replace('@', '')}`} 
-              target="_blank" 
-              rel="noreferrer"
+            <a href={`https://instagram.com/${shop.insta_handle?.replace('@', '')}`} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-muted/50 hover:bg-muted font-medium transition-colors text-sm"
-              data-testid="link-insta"
-            >
+              data-testid="link-insta">
               <Instagram className="w-4 h-4" /> {shop.insta_handle}
             </a>
             <Button variant="outline" size="sm" className="rounded-full" onClick={handleShare}>
@@ -177,32 +148,24 @@ export default function ShopPage({ slug }: { slug: string }) {
           )}
         </section>
 
-        {/* Payment & Ordering */}
+        {/* How to order */}
         <section className="bg-primary/5 border border-primary/20 rounded-3xl p-6 md:p-10">
           <div className="text-center max-w-lg mx-auto">
             <h2 className="text-3xl font-bold mb-6">How to order</h2>
             <ol className="text-left space-y-5">
-              <li className="flex gap-4 items-start">
-                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">1</span>
-                <div>
-                  <p className="font-semibold text-foreground">Select a product and tap Buy Now</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Browse the catalog, choose your size and quantity, then hit Buy Now.</p>
-                </div>
-              </li>
-              <li className="flex gap-4 items-start">
-                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">2</span>
-                <div>
-                  <p className="font-semibold text-foreground">Scan QR code &amp; complete payment</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Scan the UPI QR shown during checkout and pay the exact amount.</p>
-                </div>
-              </li>
-              <li className="flex gap-4 items-start">
-                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">3</span>
-                <div>
-                  <p className="font-semibold text-foreground">Upload payment proof or enter UTR</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Take a screenshot of the payment or enter the 12-digit UTR number to confirm your order.</p>
-                </div>
-              </li>
+              {[
+                { title: "Select a product and tap Buy Now", desc: "Browse the catalog, choose your size and quantity, then hit Buy Now." },
+                { title: "Scan QR code & complete payment", desc: "Scan the UPI QR shown during checkout and pay the exact amount." },
+                { title: "Upload payment proof or enter UTR", desc: "Take a screenshot of the payment or enter the 12-digit UTR number to confirm your order." },
+              ].map((step, i) => (
+                <li key={i} className="flex gap-4 items-start">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">{i + 1}</span>
+                  <div>
+                    <p className="font-semibold text-foreground">{step.title}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{step.desc}</p>
+                  </div>
+                </li>
+              ))}
             </ol>
           </div>
         </section>
@@ -213,6 +176,13 @@ export default function ShopPage({ slug }: { slug: string }) {
           <ReviewSection reviews={reviews} />
         </section>
       </main>
+
+      {/* Trial expired notice — gentle, at bottom */}
+      {isTrialExpired && (
+        <div className="bg-amber-50 border-t border-amber-200 py-3 px-4 text-center text-sm text-amber-700">
+          This store's trial has ended. The seller is renewing soon.
+        </div>
+      )}
 
       <footer className="py-8 text-center border-t text-muted-foreground text-sm bg-muted/20">
         <p className="mb-2">Powered by Shopgram</p>
@@ -233,11 +203,7 @@ export default function ShopPage({ slug }: { slug: string }) {
         shopName={shop.shop_name}
       />
 
-      <BuyerAuthModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        defaultTab={authModalTab}
-      />
+      <BuyerAuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} defaultTab={authModalTab} />
     </div>
   );
 }

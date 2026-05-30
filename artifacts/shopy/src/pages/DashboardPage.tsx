@@ -6,7 +6,7 @@ import {
   Store, LogOut, Package, ShoppingBag, Star, LayoutDashboard,
   Copy, Check, Plus, Trash2, Pencil, X, Settings as SettingsIcon,
   TrendingUp, Clock, Search, ChevronRight, ExternalLink, Instagram,
-  Phone, MapPin, Hash, StickyNote,
+  Phone, MapPin, Hash, StickyNote, CreditCard, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const [settingsQrFile, setSettingsQrFile] = useState<File | null>(null);
   const [settingsQrPreview, setSettingsQrPreview] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -242,12 +243,19 @@ export default function DashboardPage() {
     return list;
   }, [orders, orderFilter, dateRange, orderSearch]);
 
+  // ── Plan / billing helpers ──
+  const planType = shop?.plan ?? "trial";
+  const isTrialExpired = planType === "trial" && shop?.trial_ends_at != null && new Date(shop.trial_ends_at) < new Date();
+  const trialDaysLeft = shop?.trial_ends_at ? Math.ceil((new Date(shop.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
+  const daysExpiredAgo = isTrialExpired && shop?.trial_ends_at ? Math.ceil((Date.now() - new Date(shop.trial_ends_at).getTime()) / 86400000) : 0;
+
   const tabDefs = [
     { value: "overview", icon: LayoutDashboard, label: "Home" },
     { value: "products", icon: Package, label: "Products" },
     { value: "orders", icon: ShoppingBag, label: "Orders", badge: pendingCount },
     { value: "reviews", icon: Star, label: "Reviews" },
     { value: "settings", icon: SettingsIcon, label: "Settings" },
+    { value: "billing", icon: CreditCard, label: "Billing" },
   ];
 
   if (isLoading) return (
@@ -334,6 +342,23 @@ export default function DashboardPage() {
               <div className="md:hidden">
                 <h1 className="text-xl font-bold">{tabLabel}</h1>
               </div>
+
+              {/* Trial expired banner — shown on all tabs */}
+              {isTrialExpired && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800 text-sm">
+                      Your free trial ended {daysExpiredAgo} {daysExpiredAgo === 1 ? "day" : "days"} ago. Your store is still live.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5">Upgrade to Pro to keep it running.</p>
+                  </div>
+                  <Button size="sm" className="rounded-full bg-amber-500 hover:bg-amber-600 text-white h-8 shrink-0"
+                    onClick={() => setActiveTab("billing")}>
+                    Upgrade Now
+                  </Button>
+                </div>
+              )}
 
               {/* ════════ OVERVIEW ════════ */}
               <TabsContent value="overview" className="space-y-5 mt-0">
@@ -852,6 +877,111 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {/* ════════ BILLING ════════ */}
+              <TabsContent value="billing" className="space-y-4 mt-0">
+                {/* Current Plan */}
+                <Card>
+                  <CardHeader className="px-4 pt-4 pb-2">
+                    <CardTitle className="text-base">Your Plan</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-5">
+                    {/* Badge + countdown row */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        {planType === "trial" && !isTrialExpired && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-300 font-bold text-sm">Free Trial</span>
+                        )}
+                        {isTrialExpired && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-300 font-bold text-sm">Expired</span>
+                        )}
+                        {planType === "pro" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold text-sm">Pro</span>
+                        )}
+                        {planType === "expired" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-300 font-bold text-sm">Expired</span>
+                        )}
+                        <p className="text-sm text-muted-foreground max-w-xs">
+                          {planType === "trial" && !isTrialExpired && shop.trial_ends_at &&
+                            `Your free trial ends on ${new Date(shop.trial_ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+                          {isTrialExpired && shop.trial_ends_at &&
+                            `Your trial expired on ${new Date(shop.trial_ends_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Renew to keep your store active.`}
+                          {planType === "pro" && shop.plan_expires_at &&
+                            `Your Pro plan is active until ${new Date(shop.plan_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+                          {planType === "expired" && shop.plan_expires_at &&
+                            `Your plan expired on ${new Date(shop.plan_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Renew to keep your store active.`}
+                        </p>
+                      </div>
+                      {/* Countdown */}
+                      {planType === "trial" && trialDaysLeft !== null && trialDaysLeft > 0 && (
+                        <div className="text-right shrink-0">
+                          <p className={`font-extrabold leading-none ${trialDaysLeft <= 7 ? "text-red-500" : "text-amber-500"}`} style={{ fontSize: 48 }}>
+                            {trialDaysLeft}
+                          </p>
+                          <p className={`text-xs mt-1 flex items-center justify-end gap-1 ${trialDaysLeft <= 7 ? "text-red-500" : "text-muted-foreground"}`}>
+                            {trialDaysLeft <= 7 && <AlertTriangle className="w-3 h-3" />}
+                            days remaining
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Features checklist */}
+                    <div className="space-y-2 pt-1">
+                      {[
+                        "Your own store page",
+                        "Unlimited products",
+                        "UPI QR payment",
+                        "Verified buyer reviews",
+                        "Custom subdomain (shopname.shopgram.in)",
+                      ].map(feature => (
+                        <div key={feature} className="flex items-center gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <span className="text-sm">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Upgrade / Pro card */}
+                {planType === "pro" && !isTrialExpired ? (
+                  <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-center">
+                    <p className="text-xl font-bold text-emerald-700 mb-1">Thank you for being a Pro member 🎉</p>
+                    <p className="text-sm text-emerald-600">Your store is fully active and supported.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-5 text-white space-y-4" style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}>
+                    <div>
+                      <p className="text-lg font-bold">Continue after trial for just ₹99/month</p>
+                      <p className="text-sm text-violet-200 mt-0.5">Keep your store always-on with a Pro subscription.</p>
+                    </div>
+                    <ul className="space-y-2">
+                      {["Always-on store", "Priority support", "Analytics coming soon"].map(b => (
+                        <li key={b} className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-300 shrink-0" />
+                          <span className="text-sm text-violet-100">{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button className="w-full bg-white text-violet-700 hover:bg-violet-50 font-bold rounded-full h-12 text-base"
+                      onClick={() => setUpgradeModalOpen(true)}>
+                      Upgrade to Pro — ₹99/month
+                    </Button>
+                  </div>
+                )}
+
+                {/* Payment History */}
+                <Card>
+                  <CardHeader className="px-4 pt-4 pb-2">
+                    <CardTitle className="text-base">Payment History</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-6">
+                    <p className="text-sm text-center py-6 text-muted-foreground">No payment history yet.</p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
             </Tabs>
           </div>
         </main>
@@ -880,6 +1010,34 @@ export default function DashboardPage() {
           })}
         </div>
       </nav>
+
+      {/* ══ UPGRADE DIALOG ══ */}
+      <Dialog open={upgradeModalOpen} onOpenChange={setUpgradeModalOpen}>
+        <DialogContent className="sm:max-w-sm mx-4 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Upgrade to Pro ✨</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">To upgrade your plan, contact us via:</p>
+            <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold flex items-center gap-2">💬 WhatsApp</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Send a WhatsApp message to complete your upgrade instantly.</p>
+              </div>
+              <div className="border-t pt-3">
+                <p className="text-sm font-semibold flex items-center gap-2">📧 Email</p>
+                <p className="text-sm font-mono font-medium text-primary mt-0.5">contact@shopgram.in</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center bg-violet-50 border border-violet-100 rounded-lg p-2.5">
+              Once payment is received, your Pro plan will be activated within 24 hours.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button className="w-full rounded-full" onClick={() => setUpgradeModalOpen(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ══ CONFIRM DIALOG ══ */}
       <Dialog open={!!confirmDialog} onOpenChange={open => !open && setConfirmDialog(null)}>
