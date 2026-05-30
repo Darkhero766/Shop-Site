@@ -20,8 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ImageUpload } from "@/components/ImageUpload";
 
-type ProductForm = { name: string; price: number; description: string; sizes: string };
-const emptyForm: ProductForm = { name: "", price: 0, description: "", sizes: "" };
+type ProductForm = { name: string; price: number; description: string; sizes: string; in_stock: boolean };
+const emptyForm: ProductForm = { name: "", price: 0, description: "", sizes: "", in_stock: true };
 type DateRange = "today" | "week" | "month" | "all";
 
 function isInRange(dateStr: string, range: DateRange): boolean {
@@ -156,7 +156,7 @@ export default function DashboardPage() {
   };
   const openEditProduct = (p: Product) => {
     setEditingProduct(p);
-    setProductForm({ name: p.name, price: p.price, description: p.description ?? "", sizes: p.sizes?.join(", ") ?? "" });
+    setProductForm({ name: p.name, price: p.price, description: p.description ?? "", sizes: p.sizes?.join(", ") ?? "", in_stock: p.in_stock });
     setProductImageFiles([null, null, null, null]); setProductImagePreviews([null, null, null, null]);
     setExistingImages(p.images ?? []); setShowProductForm(true);
   };
@@ -185,7 +185,7 @@ export default function DashboardPage() {
         shop_id: shop.id, name: productForm.name.trim(), price: Number(productForm.price),
         description: productForm.description.trim() || null,
         sizes: productForm.sizes ? productForm.sizes.split(",").map(s => s.trim()).filter(Boolean) : null,
-        images: [...existingImages, ...newUrls], in_stock: true,
+        images: [...existingImages, ...newUrls], in_stock: productForm.in_stock,
       };
       if (editingProduct) {
         const { error } = await supabase.from("products").update(payload).eq("id", editingProduct.id);
@@ -582,6 +582,22 @@ export default function DashboardPage() {
                             onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} data-testid="input-product-desc" />
                         </div>
                       </div>
+                      {/* Stock toggle */}
+                      <div className="flex items-center justify-between rounded-xl border px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium">In Stock</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {productForm.in_stock ? "Buyers can order this product" : "Product shows as Out of Stock"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProductForm(p => ({ ...p, in_stock: !p.in_stock }))}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none ${productForm.in_stock ? "bg-emerald-500" : "bg-muted"}`}
+                          data-testid="toggle-in-stock">
+                          <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform ${productForm.in_stock ? "translate-x-5" : "translate-x-0"}`} />
+                        </button>
+                      </div>
                       <div className="flex gap-3">
                         <Button onClick={saveProduct} disabled={isSavingProduct} className="rounded-full flex-1" data-testid="btn-save-product">
                           {isSavingProduct ? "Saving..." : editingProduct ? "Save Changes" : "Add Product"}
@@ -633,7 +649,22 @@ export default function DashboardPage() {
                               </div>
                               <div className="p-2.5">
                                 <h4 className="font-medium text-xs truncate">{p.name}</h4>
-                                <p className="text-primary font-bold text-sm">₹{p.price}</p>
+                                <div className="flex items-center justify-between mt-0.5">
+                                  <p className="text-primary font-bold text-sm">₹{p.price}</p>
+                                  <button
+                                    type="button"
+                                    title={p.in_stock ? "Mark out of stock" : "Mark in stock"}
+                                    onClick={async () => {
+                                      const newVal = !p.in_stock;
+                                      await supabase.from("products").update({ in_stock: newVal }).eq("id", p.id);
+                                      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, in_stock: newVal } : x));
+                                      toast.success(newVal ? "Marked in stock" : "Marked out of stock");
+                                    }}
+                                    className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${p.in_stock ? "bg-emerald-500" : "bg-gray-300"}`}>
+                                    <span className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform ${p.in_stock ? "translate-x-3" : "translate-x-0"}`} />
+                                  </button>
+                                </div>
+                                {!p.in_stock && <p className="text-[10px] text-red-500 font-medium mt-0.5">Out of stock</p>}
                               </div>
                             </div>
                           ))}
