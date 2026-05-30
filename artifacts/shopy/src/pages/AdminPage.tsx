@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { supabase, Shop } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { ShieldAlert, CheckCircle, XCircle, Edit2, Calendar } from "lucide-react";
+import { ShieldAlert, CheckCircle, XCircle, Edit2, Calendar, PauseCircle, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -55,7 +55,7 @@ export default function AdminPage() {
     if (authLoading) return;
     if (!session) { toast.error("Please log in first"); setLocation("/login"); return; }
     const user = session.user;
-    if (!user.app_metadata?.role === ("admin" as any)) { toast.error("Access denied."); setLocation("/"); return; }
+    if (user.app_metadata?.role !== "admin") { toast.error("Access denied."); setLocation("/"); return; }
 
     async function loadShops() {
       const { data, error } = await supabase.from("shops").select("*").order("created_at", { ascending: false });
@@ -65,7 +65,7 @@ export default function AdminPage() {
     loadShops();
   }, [authLoading, session, setLocation]);
 
-  const updateStatus = async (id: string, status: "active" | "suspended") => {
+  const updateStatus = async (id: string, status: "active" | "suspended" | "paused") => {
     const { error } = await supabase.from("shops").update({ status }).eq("id", id);
     if (error) { toast.error(`Update failed: ${error.message}`); return; }
     const { data: refetched, error: fetchErr } = await supabase.from("shops").select("status").eq("id", id).single();
@@ -157,7 +157,9 @@ export default function AdminPage() {
                   <div className="text-xs text-muted-foreground">{shop.whatsapp}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={shop.status === "active" ? "default" : shop.status === "pending" ? "secondary" : "destructive"} className="capitalize">
+                  <Badge
+                    variant={shop.status === "active" ? "default" : shop.status === "pending" ? "secondary" : "destructive"}
+                    className={`capitalize ${shop.status === "paused" ? "bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-100" : ""}`}>
                     {shop.status}
                   </Badge>
                 </TableCell>
@@ -176,7 +178,12 @@ export default function AdminPage() {
                   <div className="flex gap-1.5 flex-wrap">
                     {shop.status !== "active" && (
                       <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-full h-7 px-2.5 text-xs" onClick={() => updateStatus(shop.id, "active")}>
-                        <CheckCircle className="w-3.5 h-3.5 mr-1" /> Approve
+                        <CheckCircle className="w-3.5 h-3.5 mr-1" /> {shop.status === "paused" ? "Resume" : "Approve"}
+                      </Button>
+                    )}
+                    {shop.status === "active" && (
+                      <Button size="sm" variant="outline" className="rounded-full h-7 px-2.5 text-xs border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => updateStatus(shop.id, "paused")}>
+                        <PauseCircle className="w-3.5 h-3.5 mr-1" /> Pause
                       </Button>
                     )}
                     {shop.status !== "suspended" && (

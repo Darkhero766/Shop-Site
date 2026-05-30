@@ -1026,7 +1026,7 @@ export default function DashboardPage() {
               </div>
               <div className="border-t pt-3">
                 <p className="text-sm font-semibold flex items-center gap-2">📧 Email</p>
-                <p className="text-sm font-mono font-medium text-primary mt-0.5">contact@shopgram.in</p>
+                <p className="text-sm font-mono font-medium text-primary mt-0.5">contact.shoprgam@gmail.com</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center bg-violet-50 border border-violet-100 rounded-lg p-2.5">

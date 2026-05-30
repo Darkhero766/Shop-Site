@@ -28,7 +28,7 @@ export type Shop = {
   email: string;
   category: string | null;
   delivery_info: string | null;
-  status: "pending" | "active" | "suspended";
+  status: "pending" | "active" | "suspended" | "paused";
   plan: "trial" | "pro" | "expired";
   trial_ends_at: string | null;
   plan_started_at: string | null;

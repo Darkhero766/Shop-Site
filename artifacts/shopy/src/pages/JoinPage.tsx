@@ -173,7 +173,8 @@ export default function JoinPage() {
         upi_qr_url: qrUrl,
         delivery_info: s2.delivery_info,
         status: "pending",
-        plan: "free"
+        plan: "trial",
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }).select().single();
       if (shopErr) throw shopErr;
 

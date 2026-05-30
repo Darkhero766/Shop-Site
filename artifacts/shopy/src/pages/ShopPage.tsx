@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductDrawer } from "@/components/ProductDrawer";
 import { ReviewSection } from "@/components/ReviewSection";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { BadgeCheck, Instagram, AlertCircle, Share2 } from "lucide-react";
+import { BadgeCheck, Instagram, AlertCircle, Share2, PauseCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotFound, setIsNotFound] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
@@ -35,6 +36,7 @@ export default function ShopPage({ slug }: { slug: string }) {
         if (shopErr) throw shopErr;
         if (!shopData) { setIsNotFound(true); setIsLoading(false); return; }
         if (shopData.status === "suspended") { setIsNotFound(true); setIsLoading(false); return; }
+        if (shopData.status === "paused") { setIsPaused(true); setShop(shopData); setIsLoading(false); return; }
 
         setShop(shopData);
 
@@ -79,6 +81,26 @@ export default function ShopPage({ slug }: { slug: string }) {
         <h1 className="text-2xl font-bold mb-2">Shop not available</h1>
         <p className="text-muted-foreground mb-8">This shop doesn't exist or has been suspended.</p>
         <Button onClick={() => setLocation("/")} className="rounded-full">Create your own store</Button>
+      </div>
+    );
+  }
+
+  if (isPaused && shop) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background p-6 text-center">
+        <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-5">
+          <PauseCircle className="w-10 h-10 text-amber-500" />
+        </div>
+        {shop.logo_url && (
+          <img src={shop.logo_url} alt={shop.shop_name} className="w-14 h-14 rounded-full object-cover border-2 border-border mb-3" />
+        )}
+        <h1 className="text-2xl font-bold mb-2">{shop.shop_name}</h1>
+        <p className="text-muted-foreground max-w-sm mb-6">This store is temporarily paused. Check back soon — we'll be back shortly!</p>
+        {shop.whatsapp && (
+          <a href={`https://wa.me/${shop.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" className="rounded-full">Contact on WhatsApp</Button>
+          </a>
+        )}
       </div>
     );
   }
