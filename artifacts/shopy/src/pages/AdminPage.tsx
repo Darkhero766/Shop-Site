@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { supabase, Shop } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { ShieldAlert, CheckCircle, XCircle, Edit2, Calendar, PauseCircle, PlayCircle } from "lucide-react";
+import { ShieldAlert, CheckCircle, XCircle, Edit2, Calendar, PauseCircle, PlayCircle, TrendingUp, IndianRupee, Users, AlertTriangle, Clock, BarChart3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,6 +45,8 @@ export default function AdminPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [planFilter, setPlanFilter] = useState<"all" | "trial" | "pro" | "expired">("all");
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   // Edit Plan modal
   const [editPlanModal, setEditPlanModal] = useState<{ shop: Shop } | null>(null);
@@ -58,8 +60,14 @@ export default function AdminPage() {
     if (user.app_metadata?.role !== "admin") { toast.error("Access denied."); setLocation("/"); return; }
 
     async function loadShops() {
-      const { data, error } = await supabase.from("shops").select("*").order("created_at", { ascending: false });
+      const [{ data, error }, { count: orderCount }, { count: productCount }] = await Promise.all([
+        supabase.from("shops").select("*").order("created_at", { ascending: false }),
+        supabase.from("orders").select("*", { count: "exact", head: true }),
+        supabase.from("products").select("*", { count: "exact", head: true }),
+      ]);
       if (!error && data) setShops(data as Shop[]);
+      setTotalOrders(orderCount ?? 0);
+      setTotalProducts(productCount ?? 0);
       setIsLoading(false);
     }
     loadShops();
@@ -126,6 +134,25 @@ export default function AdminPage() {
 
   const pending = shops.filter(s => s.status === "pending");
   const active = shops.filter(s => s.status === "active");
+  const paused = shops.filter(s => s.status === "paused");
+  const suspended = shops.filter(s => s.status === "suspended");
+
+  // Revenue metrics
+  const totalRevenue = shops.reduce((sum, s) => sum + (s.plan_amount ?? 0), 0);
+  const proShopsActive = shops.filter(s => s.plan === "pro" && !isExpired(s));
+  const mrr = proShopsActive.reduce((sum, s) => sum + (s.plan_amount ?? 99), 0);
+  const expiredShops = shops.filter(s => isExpired(s));
+  const expiringSoon = shops.filter(s => {
+    const d = getDaysLeft(s);
+    return d !== null && d > 0 && d <= 7 && !isExpired(s);
+  });
+  const conversionRate = shops.length > 0 ? Math.round((proShopsActive.length / shops.length) * 100) : 0;
+  const joinedThisMonth = shops.filter(s => {
+    if (!s.created_at) return false;
+    const d = new Date(s.created_at);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
 
   const ShopTable = ({ data }: { data: Shop[] }) => (
     <div className="overflow-x-auto">
@@ -214,24 +241,147 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Stats */}
+
+        {/* ── Revenue Hero ── */}
+        <div className="rounded-2xl p-5 md:p-7 text-white space-y-5" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-violet-200 text-sm font-medium uppercase tracking-wide">Total Revenue Collected</p>
+              <p className="text-4xl md:text-5xl font-extrabold mt-1">₹{totalRevenue.toLocaleString("en-IN")}</p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-4 text-center min-w-[100px]">
+              <p className="text-violet-200 text-xs font-medium">MRR</p>
+              <p className="text-2xl font-bold mt-0.5">₹{mrr.toLocaleString("en-IN")}</p>
+              <p className="text-violet-300 text-[10px] mt-0.5">monthly recurring</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-violet-200 text-xs">Pro Shops</p>
+              <p className="text-xl font-bold mt-0.5">{proShopsActive.length}</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-violet-200 text-xs">Conversion Rate</p>
+              <p className="text-xl font-bold mt-0.5">{conversionRate}%</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-violet-200 text-xs">New This Month</p>
+              <p className="text-xl font-bold mt-0.5">{joinedThisMonth.length}</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-violet-200 text-xs">Avg per Pro Shop</p>
+              <p className="text-xl font-bold mt-0.5">₹{proShopsActive.length > 0 ? Math.round(mrr / proShopsActive.length) : 0}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Store Status Cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card border rounded-2xl p-4 text-center shadow-sm">
-            <h3 className="text-muted-foreground text-sm font-medium mb-1">Total Shops</h3>
+          <div className="bg-card border rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center"><Users className="w-4 h-4 text-muted-foreground" /></div>
+              <p className="text-sm text-muted-foreground font-medium">Total Stores</p>
+            </div>
             <p className="text-3xl font-bold">{shops.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">{totalProducts} products · {totalOrders} orders</p>
           </div>
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center shadow-sm text-emerald-900">
-            <h3 className="text-sm font-medium mb-1 opacity-80">Active</h3>
+          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 shadow-sm text-emerald-900">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-emerald-600" /></div>
+              <p className="text-sm font-medium opacity-80">Active</p>
+            </div>
             <p className="text-3xl font-bold">{active.length}</p>
+            <p className="text-xs opacity-70 mt-1">{paused.length} paused · {suspended.length} suspended</p>
           </div>
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center shadow-sm text-amber-900">
-            <h3 className="text-sm font-medium mb-1 opacity-80">Pending</h3>
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 shadow-sm text-amber-900">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center"><Clock className="w-4 h-4 text-amber-600" /></div>
+              <p className="text-sm font-medium opacity-80">Pending</p>
+            </div>
             <p className="text-3xl font-bold">{pending.length}</p>
+            <p className="text-xs opacity-70 mt-1">awaiting approval</p>
           </div>
-          <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4 text-center shadow-sm text-violet-900">
-            <h3 className="text-sm font-medium mb-1 opacity-80">Pro Shops</h3>
-            <p className="text-3xl font-bold">{shops.filter(s => s.plan === "pro" && !isExpired(s)).length}</p>
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 shadow-sm text-red-900">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center"><AlertTriangle className="w-4 h-4 text-red-500" /></div>
+              <p className="text-sm font-medium opacity-80">Expired</p>
+            </div>
+            <p className="text-3xl font-bold">{expiredShops.length}</p>
+            <p className="text-xs opacity-70 mt-1">{expiringSoon.length} expiring in 7 days</p>
           </div>
+        </div>
+
+        {/* ── Alerts + Pro Revenue ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* Needs Attention */}
+          <div className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <h3 className="font-semibold text-sm">Needs Attention</h3>
+            </div>
+            {expiringSoon.length === 0 && pending.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-3 text-center">All clear ✓</p>
+            ) : (
+              <div className="space-y-2">
+                {pending.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-amber-900">{s.shop_name}</p>
+                      <p className="text-xs text-amber-700">Pending approval</p>
+                    </div>
+                    <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-full h-7 px-2.5 text-xs" onClick={() => updateStatus(s.id, "active")}>
+                      <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                    </Button>
+                  </div>
+                ))}
+                {expiringSoon.map(s => {
+                  const d = getDaysLeft(s);
+                  return (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg bg-red-50 border border-red-100 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-red-900">{s.shop_name}</p>
+                        <p className="text-xs text-red-700">{d}d left · {s.plan === "pro" ? "Pro" : "Trial"}</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="rounded-full h-7 px-2.5 text-xs border-red-200 text-red-700" onClick={() => openEditPlan(s)}>
+                        <Edit2 className="w-3 h-3 mr-1" /> Renew
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Pro Shops Revenue */}
+          <div className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="w-4 h-4 text-violet-500" />
+              <h3 className="font-semibold text-sm">Pro Revenue Breakdown</h3>
+            </div>
+            {proShopsActive.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-3 text-center">No Pro shops yet</p>
+            ) : (
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {proShopsActive.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium">{s.shop_name}</p>
+                      <p className="text-xs text-muted-foreground">expires {formatDate(s.plan_expires_at)}</p>
+                    </div>
+                    <p className="text-sm font-bold text-emerald-600">₹{(s.plan_amount ?? 0).toLocaleString("en-IN")}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {proShopsActive.length > 0 && (
+              <div className="border-t pt-2 flex justify-between">
+                <p className="text-xs text-muted-foreground">Total from {proShopsActive.length} active Pro shops</p>
+                <p className="text-sm font-bold">₹{mrr.toLocaleString("en-IN")}</p>
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Shops table */}
