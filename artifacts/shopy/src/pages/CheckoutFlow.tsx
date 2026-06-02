@@ -658,7 +658,6 @@ export default function CheckoutFlow({ shopSlug, productId }: { shopSlug: string
       utr: utr,
       payment_screenshot_url: screenshotUrl,
       status: "pending",
-      buyer_id: buyerSession?.user.id ?? null,
     });
     if (error) throw new Error(error.message);
     setStep(4);
