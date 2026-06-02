@@ -63,7 +63,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `https://shopgram.in/reset-password`,
       });
       if (error) throw error;
       setView("sent");

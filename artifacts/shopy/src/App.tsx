@@ -14,6 +14,7 @@ import ShopPage from "@/pages/ShopPage";
 import DashboardPage from "@/pages/DashboardPage";
 import AdminPage from "@/pages/AdminPage";
 import CheckoutFlow from "@/pages/CheckoutFlow";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route component={NotFound} />
     </Switch>
   );
