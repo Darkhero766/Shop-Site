@@ -68,7 +68,7 @@ export type Order = {
   utr?: string | null;
   payment_screenshot_url?: string | null;
   amount: number;
-  status: "pending" | "confirmed" | "declined";
+  status: "pending" | "confirmed" | "declined" | "completed";
   created_at: string;
   products?: Product;
 };

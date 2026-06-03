@@ -35,9 +35,13 @@ function isInRange(dateStr: string, range: DateRange): boolean {
 }
 
 function StatusBadge({ status }: { status: Order["status"] }) {
+  const cls =
+    status === "confirmed"  ? "bg-emerald-500 hover:bg-emerald-600 text-white" :
+    status === "completed"  ? "bg-blue-500 hover:bg-blue-600 text-white" :
+    status === "pending"    ? "bg-amber-100 text-amber-700 border-amber-200" : "";
   return (
-    <Badge variant={status === "confirmed" ? "default" : status === "declined" ? "destructive" : "secondary"}
-      className={`capitalize whitespace-nowrap text-xs ${status === "confirmed" ? "bg-emerald-500 hover:bg-emerald-600" : status === "pending" ? "bg-amber-100 text-amber-700 border-amber-200" : ""}`}>
+    <Badge variant={status === "declined" ? "destructive" : "default"}
+      className={`capitalize whitespace-nowrap text-xs ${cls}`}>
       {status}
     </Badge>
   );
@@ -53,7 +57,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "confirmed" | "declined">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "confirmed" | "declined" | "completed">("all");
   const [orderSearch, setOrderSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
 
@@ -63,6 +67,8 @@ export default function DashboardPage() {
   const [declineDialog, setDeclineDialog] = useState<{ order: Order } | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [isDeclining, setIsDeclining] = useState(false);
+  const [completeDialog, setCompleteDialog] = useState<{ order: Order } | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
 
   // Product form
@@ -132,6 +138,19 @@ export default function DashboardPage() {
       toast.success(`Order confirmed for ${confirmDialog.order.buyer_name} ✓`);
     } else toast.error("Failed to confirm order");
     setConfirmDialog(null);
+  };
+
+  const handleCompleteOrder = async () => {
+    if (!completeDialog) return;
+    setIsCompleting(true);
+    const { error } = await supabase.from("orders").update({ status: "completed" }).eq("id", completeDialog.order.id);
+    setIsCompleting(false);
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === completeDialog.order.id ? { ...o, status: "completed" } : o));
+      if (detailOrder?.id === completeDialog.order.id) setDetailOrder(d => d ? { ...d, status: "completed" } : d);
+      toast.success(`Order marked as completed ✓`);
+    } else toast.error("Failed to update order");
+    setCompleteDialog(null);
   };
 
   const handleDeclineOrder = async () => {
@@ -679,7 +698,7 @@ export default function DashboardPage() {
               <TabsContent value="orders" className="space-y-3 mt-0">
                 {/* Status pills */}
                 <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                  {(["all", "pending", "confirmed", "declined"] as const).map(f => {
+                  {(["all", "pending", "confirmed", "completed", "declined"] as const).map(f => {
                     const count = f === "all" ? orders.length : orders.filter(o => o.status === f).length;
                     return (
                       <Button key={f} variant={orderFilter === f ? "default" : "outline"} size="sm"
@@ -753,6 +772,16 @@ export default function DashboardPage() {
                                 Decline
                               </Button>
                             </>
+                          ) : order.status === "confirmed" ? (
+                            <>
+                              <Button size="sm" className="bg-blue-500 hover:bg-blue-600 rounded-full h-8 text-xs px-3 text-white"
+                                onClick={() => setCompleteDialog({ order })}>
+                                Complete
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-8 text-xs text-primary px-2" onClick={() => setDetailOrder(order)}>
+                                <ChevronRight className="w-3 h-3" />
+                              </Button>
+                            </>
                           ) : (
                             <Button variant="ghost" size="sm" className="h-8 text-xs text-primary px-2" onClick={() => setDetailOrder(order)}>
                               Details <ChevronRight className="w-3 h-3 ml-0.5" />
@@ -820,6 +849,10 @@ export default function DashboardPage() {
                                       <Button size="sm" variant="destructive" className="rounded-full text-xs h-7"
                                         onClick={() => setDeclineDialog({ order })} data-testid={`btn-decline-${order.id}`}>Decline</Button>
                                     </>
+                                  )}
+                                  {order.status === "confirmed" && (
+                                    <Button size="sm" className="bg-blue-500 hover:bg-blue-600 rounded-full text-xs h-7 text-white"
+                                      onClick={() => setCompleteDialog({ order })}>Complete</Button>
                                   )}
                                   <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full" onClick={() => setDetailOrder(order)}>
                                     <ChevronRight className="w-3.5 h-3.5" />
@@ -1075,6 +1108,22 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ══ COMPLETE DIALOG ══ */}
+      <Dialog open={!!completeDialog} onOpenChange={open => !open && setCompleteDialog(null)}>
+        <DialogContent className="sm:max-w-md mx-4 rounded-2xl">
+          <DialogHeader><DialogTitle>Mark as Completed</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Mark order from <span className="font-semibold text-foreground">{completeDialog?.order.buyer_name}</span> for <span className="font-semibold text-primary">₹{completeDialog?.order.amount}</span> as completed? This means the item has been shipped/delivered.
+          </p>
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            <Button variant="outline" className="rounded-full" onClick={() => setCompleteDialog(null)}>Cancel</Button>
+            <Button className="rounded-full bg-blue-500 hover:bg-blue-600 text-white" onClick={handleCompleteOrder} disabled={isCompleting}>
+              {isCompleting ? "Updating…" : "Yes, Mark Completed"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ══ CONFIRM DIALOG ══ */}
       <Dialog open={!!confirmDialog} onOpenChange={open => !open && setConfirmDialog(null)}>
         <DialogContent className="sm:max-w-md mx-4 rounded-2xl">
@@ -1236,6 +1285,15 @@ export default function DashboardPage() {
                         Decline
                       </Button>
                     </div>
+                  </>
+                )}
+                {detailOrder.status === "confirmed" && (
+                  <>
+                    <div className="border-t" />
+                    <Button className="w-full rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                      onClick={() => { setDetailOrder(null); setCompleteDialog({ order: detailOrder }); }}>
+                      Mark as Completed
+                    </Button>
                   </>
                 )}
               </div>

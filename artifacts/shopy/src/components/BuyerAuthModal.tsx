@@ -393,7 +393,7 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
     supabase
       .from("orders")
       .select("*, products(name, images)")
-      .eq("buyer_id", buyerSession.user.id)
+      .eq("buyer_email", buyerSession.user.email)
       .order("created_at", { ascending: false })
       .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
   }, [buyerSession?.user.id]);
