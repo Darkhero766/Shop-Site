@@ -646,7 +646,7 @@ export default function CheckoutFlow({ shopSlug, productId }: { shopSlug: string
       order_id: orderId,
       buyer_name: buyer.name,
       buyer_phone: buyer.phone,
-      buyer_email: buyer.email || null,
+      buyer_email: buyerSession?.user.email ?? buyer.email ?? null,
       full_address: buyer.address,
       city: buyer.city,
       pincode: buyer.pincode,
