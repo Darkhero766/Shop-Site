@@ -382,11 +382,35 @@ export function BuyerAccountButton({ onOpenAuth }: { onOpenAuth: (tab?: Tab) => 
   );
 }
 
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map(n => (
+        <button key={n} type="button"
+          onMouseEnter={() => setHovered(n)} onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(n)}
+          className="text-2xl transition-transform hover:scale-110 active:scale-95">
+          <span className={(hovered || value) >= n ? "text-amber-400" : "text-gray-200"}>★</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
   const { buyerSession } = useBuyerAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
+
+  // Review state
+  const [existingReview, setExistingReview] = useState<any | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
 
   useEffect(() => {
     if (!buyerSession) { setLoading(false); return; }
@@ -398,9 +422,39 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
       .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
   }, [buyerSession?.user.id]);
 
+  // When a completed order is opened, check for an existing review
+  useEffect(() => {
+    if (!selected || selected.status !== "completed") {
+      setExistingReview(null); setRating(0); setReviewText(""); setReviewDone(false);
+      return;
+    }
+    setReviewLoading(true);
+    supabase.from("reviews").select("*").eq("order_id", selected.id).maybeSingle()
+      .then(({ data }) => { setExistingReview(data ?? null); setReviewLoading(false); });
+  }, [selected?.id]);
+
+  const submitReview = async () => {
+    if (!selected || rating === 0) return;
+    setSubmitting(true);
+    const { error } = await supabase.from("reviews").insert({
+      shop_id: selected.shop_id,
+      order_id: selected.id,
+      rating,
+      review_text: reviewText.trim() || null,
+      buyer_name: selected.buyer_name,
+      verified: true,
+    });
+    setSubmitting(false);
+    if (error) { toast.error("Failed to submit review"); return; }
+    setReviewDone(true);
+    setExistingReview({ rating, review_text: reviewText.trim() || null });
+    toast.success("Review submitted! Thank you ⭐");
+  };
+
   const statusColor = (s: string) =>
-    s === "confirmed" ? "bg-green-100 text-green-700" :
-    s === "declined" ? "bg-red-100 text-red-700" :
+    s === "confirmed"  ? "bg-green-100 text-green-700" :
+    s === "completed"  ? "bg-blue-100 text-blue-700" :
+    s === "declined"   ? "bg-red-100 text-red-700" :
     "bg-yellow-100 text-yellow-700";
 
   return (
@@ -441,7 +495,7 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
       </AdaptiveSheet>
 
       {selected && (
-        <AdaptiveSheet open={true} onClose={() => setSelected(null)} maxHeight="75vh">
+        <AdaptiveSheet open={true} onClose={() => setSelected(null)} maxHeight="85vh">
           <div className="flex items-center justify-between px-6 py-4 border-b mb-4">
             <h3 className="font-bold text-lg">Order Details</h3>
             <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
@@ -472,6 +526,47 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
               <p>{selected.buyer_name} · {selected.buyer_phone}</p>
               <p className="text-muted-foreground">{selected.full_address}, {selected.city}, {selected.state_name} – {selected.pincode}</p>
             </div>
+
+            {/* ── Review section (only for completed orders) ── */}
+            {selected.status === "completed" && (
+              <div className="border-t pt-4">
+                {reviewLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-purple-600" /></div>
+                ) : existingReview ? (
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-2">
+                    <p className="text-sm font-semibold flex items-center gap-2">⭐ Your Review</p>
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(n => (
+                        <span key={n} className={`text-xl ${existingReview.rating >= n ? "text-amber-400" : "text-gray-200"}`}>★</span>
+                      ))}
+                    </div>
+                    {existingReview.review_text && (
+                      <p className="text-sm text-muted-foreground italic">"{existingReview.review_text}"</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold">Rate your experience</p>
+                    <StarPicker value={rating} onChange={setRating} />
+                    <textarea
+                      value={reviewText}
+                      onChange={e => setReviewText(e.target.value)}
+                      placeholder="Share your thoughts (optional)"
+                      rows={3}
+                      className="w-full rounded-xl border border-input bg-gray-50 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <Button
+                      onClick={submitReview}
+                      disabled={rating === 0 || submitting}
+                      className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11"
+                    >
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Review"}
+                    </Button>
+                    {rating === 0 && <p className="text-xs text-muted-foreground text-center">Tap a star to rate</p>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </AdaptiveSheet>
       )}
