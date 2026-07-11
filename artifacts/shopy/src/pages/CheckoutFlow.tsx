@@ -202,8 +202,8 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
   onProceed: (buyer: BuyerData) => void;
   onBack: () => void;
 }) {
-  const { buyerProfile, buyerSession } = useBuyerAuth();
-  const hasSavedAddress = !!(buyerProfile?.default_address && buyerProfile?.full_name);
+  const { buyerProfile, buyerSession, buyerLoading } = useBuyerAuth();
+  const hasSavedAddress = !buyerLoading && !!(buyerProfile?.default_address && buyerProfile?.full_name);
 
   const savedData: BuyerData = {
     name: buyerProfile?.full_name ?? "",

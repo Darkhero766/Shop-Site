@@ -595,7 +595,10 @@ function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     if (!buyerSession) return;
     setSaving(true);
-    await supabase.from("buyers").update(form).eq("id", buyerSession.user.id);
+    await supabase.from("buyers").upsert(
+      { id: buyerSession.user.id, ...form },
+      { onConflict: "id" }
+    );
     await refreshProfile();
     setSaving(false);
     toast.success("Profile saved!");
