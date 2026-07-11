@@ -59,11 +59,25 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setBuyerSession(session);
       if (session?.user.id) fetchProfile(session.user.id);
       setBuyerLoading(false);
     });
+
+    // Listen for login / logout / token refresh events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setBuyerSession(session);
+      if (session?.user.id) {
+        fetchProfile(session.user.id);
+      } else {
+        setBuyerProfile(null);
+      }
+      setBuyerLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
