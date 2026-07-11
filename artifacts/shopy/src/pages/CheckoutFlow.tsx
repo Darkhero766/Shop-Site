@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Check, Upload, X, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Copy, Check, Upload, X, CheckCircle2, MapPin, PlusCircle } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
@@ -202,25 +202,26 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
   onProceed: (buyer: BuyerData) => void;
   onBack: () => void;
 }) {
-  const { buyerProfile } = useBuyerAuth();
-  const hasSavedAddress = !!(buyerProfile?.default_address);
-  const [usingSaved, setUsingSaved] = useState(hasSavedAddress);
+  const { buyerProfile, buyerSession } = useBuyerAuth();
+  const hasSavedAddress = !!(buyerProfile?.default_address && buyerProfile?.full_name);
 
-  const buildFormFromProfile = (profile: typeof buyerProfile): BuyerData => ({
-    name: profile?.full_name ?? initialData.name,
-    phone: profile?.phone ?? initialData.phone,
-    email: initialData.email,
-    address: profile?.default_address ?? initialData.address,
-    city: profile?.default_city ?? initialData.city,
-    pincode: profile?.default_pincode ?? initialData.pincode,
-    state: profile?.default_state ?? initialData.state,
-    instructions: initialData.instructions,
-  });
+  const savedData: BuyerData = {
+    name: buyerProfile?.full_name ?? "",
+    phone: buyerProfile?.phone ?? "",
+    email: buyerSession?.user.email ?? "",
+    address: buyerProfile?.default_address ?? "",
+    city: buyerProfile?.default_city ?? "",
+    pincode: buyerProfile?.default_pincode ?? "",
+    state: buyerProfile?.default_state ?? "",
+    instructions: "",
+  };
 
-  const [form, setForm] = useState<BuyerData>(
-    hasSavedAddress ? buildFormFromProfile(buyerProfile) : initialData
-  );
-  const [errors, setErrors] = useState<Partial<Record<keyof BuyerData, string>>>({}); 
+  // "saved" = use saved profile; "new" = enter new address
+  const [mode, setMode] = useState<"saved" | "new">(hasSavedAddress ? "saved" : "new");
+  const [form, setForm] = useState<BuyerData>(initialData);
+  const [errors, setErrors] = useState<Partial<Record<keyof BuyerData, string>>>({});
+  const [saveForNext, setSaveForNext] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const set = (key: keyof BuyerData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -228,16 +229,37 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
       setErrors(er => ({ ...er, [key]: undefined }));
     };
 
-  const validate = (): boolean => {
+  const validate = (data: BuyerData): boolean => {
     const e: Partial<Record<keyof BuyerData, string>> = {};
-    if (!form.name.trim()) e.name = "Full name is required";
-    if (!/^\d{10}$/.test(form.phone)) e.phone = "Enter a valid 10-digit phone number";
-    if (!form.address.trim()) e.address = "Address is required";
-    if (!form.city.trim()) e.city = "City is required";
-    if (!/^\d{6}$/.test(form.pincode)) e.pincode = "Enter a valid 6-digit pincode";
-    if (!form.state) e.state = "Select your state";
+    if (!data.name.trim()) e.name = "Full name is required";
+    if (!/^\d{10}$/.test(data.phone)) e.phone = "Enter a valid 10-digit phone number";
+    if (!data.address.trim()) e.address = "Address is required";
+    if (!data.city.trim()) e.city = "City is required";
+    if (!/^\d{6}$/.test(data.pincode)) e.pincode = "Enter a valid 6-digit pincode";
+    if (!data.state) e.state = "Select your state";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleProceed = async () => {
+    const data = mode === "saved" ? savedData : form;
+    if (!validate(data)) return;
+
+    if (mode === "new" && saveForNext && buyerSession) {
+      setIsSaving(true);
+      await supabase.from("buyers").upsert({
+        id: buyerSession.user.id,
+        full_name: form.name,
+        phone: form.phone,
+        default_address: form.address,
+        default_city: form.city,
+        default_pincode: form.pincode,
+        default_state: form.state,
+      }, { onConflict: "id" });
+      setIsSaving(false);
+    }
+
+    onProceed(data);
   };
 
   const total = product.price * cart.quantity;
@@ -248,11 +270,12 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
         <button onClick={onBack} className="p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-semibold ml-2">Your Details</h1>
+        <h1 className="font-semibold ml-2">Delivery Details</h1>
       </header>
       <ProgressBar current={2} />
 
-      <div className="flex-1 px-4 py-6 pb-28 space-y-6 max-w-lg mx-auto w-full">
+      <div className="flex-1 px-4 py-6 pb-28 space-y-5 max-w-lg mx-auto w-full">
+        {/* Order summary */}
         <div className="bg-muted/30 rounded-2xl p-4 flex gap-3 items-center">
           {product.images?.[0] && (
             <img src={product.images[0]} alt={product.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
@@ -267,85 +290,159 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
           </div>
         </div>
 
+        {/* Address choice — only shown when buyer has a saved address */}
         {hasSavedAddress && (
-          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm">
-            <span className="flex items-center gap-1.5 text-green-700 font-medium">
-              <CheckCircle2 className="w-4 h-4" /> Using saved address
-            </span>
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Where should we deliver?</p>
+
+            {/* Saved address card */}
             <button
               type="button"
-              onClick={() => { setUsingSaved(false); setForm(initialData); }}
-              className="text-purple-600 hover:underline text-xs font-medium"
+              onClick={() => setMode("saved")}
+              className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
+                mode === "saved"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40"
+              }`}
             >
-              {usingSaved ? "Edit" : ""}
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                  mode === "saved" ? "border-primary" : "border-muted-foreground"
+                }`}>
+                  {mode === "saved" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-sm font-semibold text-primary">Saved address</span>
+                  </div>
+                  <p className="font-medium text-sm">{savedData.name} · {savedData.phone}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                    {savedData.address}, {savedData.city}, {savedData.state} – {savedData.pincode}
+                  </p>
+                </div>
+                {mode === "saved" && (
+                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                )}
+              </div>
+            </button>
+
+            {/* New address card */}
+            <button
+              type="button"
+              onClick={() => setMode("new")}
+              className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
+                mode === "new"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                  mode === "new" ? "border-primary" : "border-muted-foreground"
+                }`}>
+                  {mode === "new" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <PlusCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-semibold">Enter a different address</span>
+              </div>
             </button>
           </div>
         )}
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block">Full Name *</label>
-            <Input value={form.name} onChange={set("name")} placeholder="Your full name"
-              className={errors.name ? "border-destructive focus-visible:ring-destructive" : ""} />
-            {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Phone Number *</label>
-            <Input value={form.phone} onChange={set("phone")} placeholder="10-digit mobile number"
-              maxLength={10} inputMode="numeric"
-              className={errors.phone ? "border-destructive focus-visible:ring-destructive" : ""} />
-            {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Email <span className="text-muted-foreground font-normal">(optional)</span></label>
-            <Input value={form.email} onChange={set("email")} placeholder="your@email.com" type="email" />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Full Address *</label>
-            <Textarea value={form.address} onChange={set("address")} placeholder="House No., Street, Area, Landmark"
-              className={`resize-none ${errors.address ? "border-destructive focus-visible:ring-destructive" : ""}`} rows={3} />
-            {errors.address && <p className="text-xs text-destructive mt-1">{errors.address}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        {/* Form fields — shown when entering new or no saved address */}
+        {mode === "new" && (
+          <div className="space-y-4">
+            {hasSavedAddress && (
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">New delivery address</p>
+            )}
             <div>
-              <label className="text-sm font-medium mb-1 block">City *</label>
-              <Input value={form.city} onChange={set("city")} placeholder="Mumbai"
-                className={errors.city ? "border-destructive focus-visible:ring-destructive" : ""} />
-              {errors.city && <p className="text-xs text-destructive mt-1">{errors.city}</p>}
+              <label className="text-sm font-medium mb-1 block">Full Name *</label>
+              <Input value={form.name} onChange={set("name")} placeholder="Your full name"
+                className={errors.name ? "border-destructive focus-visible:ring-destructive" : ""} />
+              {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Pincode *</label>
-              <Input value={form.pincode} onChange={set("pincode")} placeholder="400001"
-                maxLength={6} inputMode="numeric"
-                className={errors.pincode ? "border-destructive focus-visible:ring-destructive" : ""} />
-              {errors.pincode && <p className="text-xs text-destructive mt-1">{errors.pincode}</p>}
+              <label className="text-sm font-medium mb-1 block">Phone Number *</label>
+              <Input value={form.phone} onChange={set("phone")} placeholder="10-digit mobile number"
+                maxLength={10} inputMode="numeric"
+                className={errors.phone ? "border-destructive focus-visible:ring-destructive" : ""} />
+              {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
             </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Email <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <Input value={form.email} onChange={set("email")} placeholder="your@email.com" type="email" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Full Address *</label>
+              <Textarea value={form.address} onChange={set("address")} placeholder="House No., Street, Area, Landmark"
+                className={`resize-none ${errors.address ? "border-destructive focus-visible:ring-destructive" : ""}`} rows={3} />
+              {errors.address && <p className="text-xs text-destructive mt-1">{errors.address}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">City *</label>
+                <Input value={form.city} onChange={set("city")} placeholder="Mumbai"
+                  className={errors.city ? "border-destructive focus-visible:ring-destructive" : ""} />
+                {errors.city && <p className="text-xs text-destructive mt-1">{errors.city}</p>}
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Pincode *</label>
+                <Input value={form.pincode} onChange={set("pincode")} placeholder="400001"
+                  maxLength={6} inputMode="numeric"
+                  className={errors.pincode ? "border-destructive focus-visible:ring-destructive" : ""} />
+                {errors.pincode && <p className="text-xs text-destructive mt-1">{errors.pincode}</p>}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">State *</label>
+              <Select value={form.state} onValueChange={v => { setForm(f => ({ ...f, state: v })); setErrors(e => ({ ...e, state: undefined })); }}>
+                <SelectTrigger className={errors.state ? "border-destructive focus-visible:ring-destructive" : ""}>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {errors.state && <p className="text-xs text-destructive mt-1">{errors.state}</p>}
+            </div>
+
+            {/* Save for next time — only if logged in */}
+            {buyerSession && (
+              <button
+                type="button"
+                onClick={() => setSaveForNext(v => !v)}
+                className="flex items-center gap-2.5 w-full text-left"
+              >
+                <div className={`w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
+                  saveForNext ? "bg-primary border-primary" : "border-muted-foreground"
+                }`}>
+                  {saveForNext && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                </div>
+                <span className="text-sm text-muted-foreground">Save this address to my account for next time</span>
+              </button>
+            )}
           </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">State *</label>
-            <Select value={form.state} onValueChange={v => { setForm(f => ({ ...f, state: v })); setErrors(e => ({ ...e, state: undefined })); }}>
-              <SelectTrigger className={errors.state ? "border-destructive focus-visible:ring-destructive" : ""}>
-                <SelectValue placeholder="Select state" />
-              </SelectTrigger>
-              <SelectContent>
-                {INDIAN_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {errors.state && <p className="text-xs text-destructive mt-1">{errors.state}</p>}
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Special Instructions <span className="text-muted-foreground font-normal">(optional)</span></label>
-            <Textarea value={form.instructions} onChange={set("instructions")}
-              placeholder="Any delivery notes or preferences..." className="resize-none" rows={2} />
-          </div>
+        )}
+
+        {/* Special instructions — always shown */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Special Instructions <span className="text-muted-foreground font-normal">(optional)</span></label>
+          <Textarea
+            value={mode === "saved" ? savedData.instructions : form.instructions}
+            onChange={mode === "new" ? set("instructions") : undefined}
+            readOnly={mode === "saved"}
+            placeholder="Any delivery notes or preferences..."
+            className="resize-none"
+            rows={2}
+          />
         </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <Button className="w-full rounded-full h-12 text-base"
-            onClick={() => { if (validate()) onProceed(form); }}>
-            Proceed to Payment
+          <Button className="w-full rounded-full h-12 text-base" onClick={handleProceed} disabled={isSaving}>
+            {isSaving ? "Saving…" : "Proceed to Payment"}
           </Button>
         </div>
       </div>
