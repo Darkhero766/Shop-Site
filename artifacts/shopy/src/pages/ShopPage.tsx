@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { BuyerAuthModal, BuyerAccountButton } from "@/components/BuyerAuthModal";
+import { useBuyerAuth } from "@/lib/buyer-auth-context";
 
 export default function ShopPage({ slug }: { slug: string }) {
   const [, setLocation] = useLocation();
@@ -22,6 +23,17 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const { buyerSession } = useBuyerAuth();
+
+  // After login: if a product was pending, open it automatically
+  useEffect(() => {
+    if (buyerSession && pendingProduct) {
+      setSelectedProduct(pendingProduct);
+      setPendingProduct(null);
+      setAuthModalOpen(false);
+    }
+  }, [buyerSession, pendingProduct]);
 
   useEffect(() => {
     async function loadData() {
@@ -128,12 +140,29 @@ export default function ShopPage({ slug }: { slug: string }) {
           <div className="absolute right-0 top-0">
             <BuyerAccountButton onOpenAuth={(tab = "login") => { setAuthModalTab(tab); setAuthModalOpen(true); }} />
           </div>
+
+          {/* Instagram profile picture */}
+          {shop.insta_handle && (
+            <div className="flex justify-center mb-1">
+              <div className="relative">
+                <img
+                  src={`https://unavatar.io/instagram/${shop.insta_handle.replace('@', '')}`}
+                  alt={`${shop.shop_name} profile`}
+                  className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-background shadow-lg"
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                <span className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow">
+                  <BadgeCheck className="text-emerald-500 w-5 h-5" />
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-center mb-2">
             <Badge variant="secondary" className="px-3 py-1 text-sm rounded-full">{shop.category || "Shop"}</Badge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight flex items-center justify-center gap-3">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
             {shop.shop_name}
-            <BadgeCheck className="text-emerald-500 w-8 h-8 shrink-0" data-testid="verified-badge" />
           </h1>
           {shop.bio && <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed">{shop.bio}</p>}
           <div className="flex flex-wrap justify-center gap-3 pt-2">
@@ -158,8 +187,24 @@ export default function ShopPage({ slug }: { slug: string }) {
                 product={product}
                 avgRating={reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : undefined}
                 reviewCount={reviews.length > 0 ? reviews.length : undefined}
-                onClick={() => setSelectedProduct(product)}
-                onBuyNow={() => setSelectedProduct(product)}
+                onClick={() => {
+                  if (!buyerSession) {
+                    setPendingProduct(product);
+                    setAuthModalTab("login");
+                    setAuthModalOpen(true);
+                  } else {
+                    setSelectedProduct(product);
+                  }
+                }}
+                onBuyNow={() => {
+                  if (!buyerSession) {
+                    setPendingProduct(product);
+                    setAuthModalTab("login");
+                    setAuthModalOpen(true);
+                  } else {
+                    setSelectedProduct(product);
+                  }
+                }}
               />
             ))}
           </div>
