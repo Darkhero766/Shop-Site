@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Check, Upload, X, CheckCircle2, MapPin, PlusCircle } from "lucide-react";
+import { ArrowLeft, Copy, Check, Upload, X, CheckCircle2, MapPin, PlusCircle, Download, Loader2 } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
@@ -217,11 +217,21 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
   };
 
   // "saved" = use saved profile; "new" = enter new address
-  const [mode, setMode] = useState<"saved" | "new">(hasSavedAddress ? "saved" : "new");
+  const [mode, setMode] = useState<"saved" | "new">("new");
+  const [modeChosen, setModeChosen] = useState(false);
   const [form, setForm] = useState<BuyerData>(initialData);
   const [errors, setErrors] = useState<Partial<Record<keyof BuyerData, string>>>({});
   const [saveForNext, setSaveForNext] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Switch to saved mode once profile finishes loading (if user hasn't manually chosen)
+  useEffect(() => {
+    if (!buyerLoading && !modeChosen && buyerProfile?.default_address && buyerProfile?.full_name) {
+      setMode("saved");
+    }
+  }, [buyerLoading, buyerProfile, modeChosen]);
+
+  const switchMode = (m: "saved" | "new") => { setModeChosen(true); setMode(m); };
 
   const set = (key: keyof BuyerData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -298,7 +308,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
             {/* Saved address card */}
             <button
               type="button"
-              onClick={() => setMode("saved")}
+              onClick={() => switchMode("saved")}
               className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
                 mode === "saved"
                   ? "border-primary bg-primary/5"
@@ -330,7 +340,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
             {/* New address card */}
             <button
               type="button"
-              onClick={() => setMode("new")}
+              onClick={() => switchMode("new")}
               className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
                 mode === "new"
                   ? "border-primary bg-primary/5"
@@ -545,7 +555,18 @@ function PaymentStep({ product, shop, cart, orderId, onProceed, onBack }: {
 
         <div className="flex flex-col items-center gap-4">
           {shop.upi_qr_url ? (
-            <img src={shop.upi_qr_url} alt="UPI QR" className="w-56 h-56 object-contain rounded-2xl border-2 border-muted p-2 bg-white" />
+            <div className="flex flex-col items-center gap-2">
+              <img src={shop.upi_qr_url} alt="UPI QR" className="w-56 h-56 object-contain rounded-2xl border-2 border-muted p-2 bg-white" />
+              <a
+                href={shop.upi_qr_url}
+                download={`${shop.shop_name ?? "upi"}-qr.png`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+              >
+                <Download className="w-3.5 h-3.5" /> Download QR
+              </a>
+            </div>
           ) : (
             <div className="w-56 h-56 bg-muted rounded-2xl flex items-center justify-center">
               <span className="text-muted-foreground text-sm text-center px-4">QR code not uploaded by seller</span>
