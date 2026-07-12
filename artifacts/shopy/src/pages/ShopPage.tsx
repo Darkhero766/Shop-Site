@@ -196,24 +196,8 @@ export default function ShopPage({ slug }: { slug: string }) {
                 product={product}
                 avgRating={reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : undefined}
                 reviewCount={reviews.length > 0 ? reviews.length : undefined}
-                onClick={() => {
-                  if (!buyerSession) {
-                    setPendingProduct(product);
-                    setAuthModalTab("login");
-                    setAuthModalOpen(true);
-                  } else {
-                    setSelectedProduct(product);
-                  }
-                }}
-                onBuyNow={() => {
-                  if (!buyerSession) {
-                    setPendingProduct(product);
-                    setAuthModalTab("login");
-                    setAuthModalOpen(true);
-                  } else {
-                    setSelectedProduct(product);
-                  }
-                }}
+                onClick={() => setSelectedProduct(product)}
+                onBuyNow={() => setSelectedProduct(product)}
               />
             ))}
           </div>
@@ -271,6 +255,13 @@ export default function ShopPage({ slug }: { slug: string }) {
         onClose={() => setSelectedProduct(null)}
         onOrder={(size, qty) => {
           if (!selectedProduct) return;
+          if (!buyerSession) {
+            setPendingProduct(selectedProduct);
+            setSelectedProduct(null);
+            setAuthModalTab("login");
+            setAuthModalOpen(true);
+            return;
+          }
           const params = new URLSearchParams({ qty: String(qty) });
           if (size) params.set("size", size);
           setLocation(`/s/${slug}/product/${selectedProduct.id}?${params.toString()}`);
