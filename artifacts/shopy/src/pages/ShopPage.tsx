@@ -24,6 +24,7 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [pfpError, setPfpError] = useState(false);
   const { buyerSession } = useBuyerAuth();
 
   // After login: if a product was pending, open it automatically
@@ -145,12 +146,20 @@ export default function ShopPage({ slug }: { slug: string }) {
           {shop.insta_handle && (
             <div className="flex justify-center mb-1">
               <div className="relative">
-                <img
-                  src={`https://unavatar.io/instagram/${shop.insta_handle.replace('@', '')}`}
-                  alt={`${shop.shop_name} profile`}
-                  className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-background shadow-lg"
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
+                {!pfpError ? (
+                  <img
+                    src={`https://unavatar.io/instagram/${shop.insta_handle.replace('@', '')}`}
+                    alt={`${shop.shop_name} profile`}
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-background shadow-lg"
+                    onError={() => setPfpError(true)}
+                  />
+                ) : (
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-background shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <span className="text-white text-3xl md:text-4xl font-extrabold select-none">
+                      {shop.shop_name?.charAt(0).toUpperCase() ?? "S"}
+                    </span>
+                  </div>
+                )}
                 <span className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow">
                   <BadgeCheck className="text-emerald-500 w-5 h-5" />
                 </span>
