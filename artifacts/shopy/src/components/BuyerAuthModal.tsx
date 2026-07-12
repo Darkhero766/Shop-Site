@@ -595,10 +595,19 @@ function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     if (!buyerSession) return;
     setSaving(true);
-    await supabase.from("buyers").upsert(
-      { id: buyerSession.user.id, ...form },
+    const { error } = await supabase.from("buyers").upsert(
+      {
+        id: buyerSession.user.id,
+        email: buyerSession.user.email ?? "",
+        ...form,
+      },
       { onConflict: "id" }
     );
+    if (error) {
+      toast.error(`Could not save: ${error.message}`);
+      setSaving(false);
+      return;
+    }
     await refreshProfile();
     setSaving(false);
     toast.success("Profile saved!");

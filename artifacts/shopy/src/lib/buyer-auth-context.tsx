@@ -36,16 +36,13 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   const [buyerLoading, setBuyerLoading] = useState(true);
 
   async function fetchProfile(userId: string) {
-    try {
-      const { data } = await supabase
-        .from("buyers")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-      setBuyerProfile(data ?? null);
-    } catch {
-      setBuyerProfile(null);
-    }
+    const { data, error } = await supabase
+      .from("buyers")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
+    setBuyerProfile(data ?? null);
   }
 
   async function refreshProfile() {
