@@ -114,9 +114,12 @@ export async function uploadImage(
   file: File,
   path: string
 ): Promise<{ url: string | null; error: string | null }> {
+  // Always include file extension so Supabase serves the correct content-type
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const finalPath = path.includes(".") ? path : `${path}.${ext}`;
   const { data, error } = await supabase.storage
     .from(bucket)
-    .upload(path, file, { upsert: true });
+    .upload(finalPath, file, { upsert: true, contentType: file.type });
   if (error) return { url: null, error: error.message };
   if (!data) return { url: null, error: "Upload failed: no data returned" };
   return { url: getStorageUrl(bucket, data.path), error: null };
