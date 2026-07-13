@@ -1,22 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, Shop, Product, Review } from "@/lib/supabase";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductDrawer } from "@/components/ProductDrawer";
 import { ReviewSection } from "@/components/ReviewSection";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { BadgeCheck, Instagram, AlertCircle, Share2, PauseCircle } from "lucide-react";
+import { BadgeCheck, Instagram, AlertCircle, Share2, PauseCircle, QrCode, X, Star, Users, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { BuyerAuthModal, BuyerAccountButton } from "@/components/BuyerAuthModal";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
+import { motion } from "framer-motion";
 
 export default function ShopPage({ slug }: { slug: string }) {
   const [, setLocation] = useLocation();
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [orderCount, setOrderCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotFound, setIsNotFound] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -24,7 +26,9 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
-  const [pfpError, setPfpError] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const { buyerSession } = useBuyerAuth();
 
   // After login: if a product was pending, open it automatically
@@ -53,13 +57,14 @@ export default function ShopPage({ slug }: { slug: string }) {
 
         setShop(shopData);
 
-        const { data: prodData } = await supabase
-          .from("products").select("*").eq("shop_id", shopData.id).eq("in_stock", true).order("created_at", { ascending: false });
-        if (prodData) setProducts(prodData);
-
-        const { data: reviewData } = await supabase
-          .from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false });
-        if (reviewData) setReviews(reviewData);
+        const [prodRes, reviewRes, orderRes] = await Promise.all([
+          supabase.from("products").select("*").eq("shop_id", shopData.id).eq("in_stock", true).order("created_at", { ascending: false }),
+          supabase.from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
+          supabase.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id).in("status", ["confirmed", "completed"]),
+        ]);
+        if (prodRes.data) setProducts(prodRes.data);
+        if (reviewRes.data) setReviews(reviewRes.data);
+        if (orderRes.count) setOrderCount(orderRes.count);
       } catch (err) {
         console.error(err);
       } finally {
@@ -76,6 +81,13 @@ export default function ShopPage({ slug }: { slug: string }) {
       navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard");
     }
+  };
+
+  const copyUpi = () => {
+    if (!shop?.upi_id) return;
+    navigator.clipboard.writeText(shop.upi_id);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2000);
   };
 
   if (isLoading) {
@@ -122,9 +134,10 @@ export default function ShopPage({ slug }: { slug: string }) {
 
   const isPending = shop.status === "pending";
   const isTrialExpired = shop.plan === "trial" && shop.trial_ends_at && new Date(shop.trial_ends_at) < new Date();
+  const avgRating = reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : null;
 
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className="min-h-[100dvh] bg-background" style={{ fontFamily: "'Poppins', sans-serif" }}>
       {isPending && (
         <div className="bg-amber-500 text-white text-center py-3 px-4 text-sm font-medium flex items-center justify-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -135,70 +148,115 @@ export default function ShopPage({ slug }: { slug: string }) {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 pb-24 space-y-12">
-        {/* Header */}
-        <header className="text-center space-y-4 relative">
-          <div className="absolute right-0 top-0">
-            <BuyerAccountButton onOpenAuth={(tab = "login") => { setAuthModalTab(tab); setAuthModalOpen(true); }} />
-          </div>
+      {/* ── Full-width Banner ── */}
+      <div className="relative">
+        <div className="w-full h-44 md:h-56 overflow-hidden">
+          {shop.banner_url ? (
+            <img src={shop.banner_url} alt="Shop banner" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-purple-600 via-purple-500 to-pink-400" />
+          )}
+          {/* Subtle dark overlay for contrast */}
+          <div className="absolute inset-0 bg-black/10" />
+        </div>
 
-          {/* Instagram profile picture */}
-          {shop.insta_handle && (
-            <div className="flex justify-center mb-1">
-              <div className="relative">
-                {!pfpError ? (
-                  <img
-                    src={`https://unavatar.io/instagram/${shop.insta_handle.replace('@', '')}`}
-                    alt={`${shop.shop_name} profile`}
-                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-background shadow-lg"
-                    onError={() => setPfpError(true)}
-                  />
-                ) : (
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-background shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <span className="text-white text-3xl md:text-4xl font-extrabold select-none">
-                      {shop.shop_name?.charAt(0).toUpperCase() ?? "S"}
-                    </span>
-                  </div>
-                )}
-                <span className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow">
-                  <BadgeCheck className="text-emerald-500 w-5 h-5" />
+        {/* Buyer account button — top right over banner */}
+        <div className="absolute top-3 right-3">
+          <BuyerAccountButton onOpenAuth={(tab = "login") => { setAuthModalTab(tab); setAuthModalOpen(true); }} />
+        </div>
+
+        {/* Avatar overlapping banner */}
+        <div className="absolute left-1/2 -translate-x-1/2 -bottom-12">
+          <div className="relative">
+            {shop.logo_url && !logoError ? (
+              <img
+                src={shop.logo_url}
+                alt={shop.shop_name}
+                className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-xl"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full border-4 border-background shadow-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <span className="text-white text-4xl font-extrabold select-none">
+                  {shop.shop_name?.charAt(0).toUpperCase() ?? "S"}
                 </span>
               </div>
-            </div>
-          )}
+            )}
+            <span className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
+              <BadgeCheck className="text-emerald-500 w-5 h-5" />
+            </span>
+          </div>
+        </div>
+      </div>
 
-          <div className="flex justify-center mb-2">
+      <main className="max-w-4xl mx-auto px-4 md:px-8 pt-16 pb-28 space-y-10">
+        {/* ── Header ── */}
+        <header className="text-center space-y-3 pt-2">
+          <div className="flex justify-center">
             <Badge variant="secondary" className="px-3 py-1 text-sm rounded-full">{shop.category || "Shop"}</Badge>
           </div>
+
           <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
             {shop.shop_name}
           </h1>
-          {shop.bio && <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed">{shop.bio}</p>}
-          <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <a href={`https://instagram.com/${shop.insta_handle?.replace('@', '')}`} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-muted/50 hover:bg-muted font-medium transition-colors text-sm"
-              data-testid="link-insta">
-              <Instagram className="w-4 h-4" /> {shop.insta_handle}
-            </a>
+
+          {/* Review summary */}
+          {avgRating !== null ? (
+            <div className="flex items-center justify-center gap-1.5 text-sm">
+              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+              <span className="font-semibold">{avgRating.toFixed(1)}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">{reviews.length} review{reviews.length !== 1 ? "s" : ""}</span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Be the first to review</p>
+          )}
+
+          {/* Happy customers */}
+          {orderCount > 0 && (
+            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              <span>{orderCount} happy customer{orderCount !== 1 ? "s" : ""}</span>
+            </div>
+          )}
+
+          {shop.bio && <p className="text-muted-foreground max-w-lg mx-auto leading-relaxed">{shop.bio}</p>}
+
+          <div className="flex flex-wrap justify-center gap-3 pt-1">
+            {shop.insta_handle && (
+              <a
+                href={`https://instagram.com/${shop.insta_handle.replace('@', '')}`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-muted/50 hover:bg-muted font-medium transition-colors text-sm"
+              >
+                <Instagram className="w-4 h-4" /> {shop.insta_handle}
+              </a>
+            )}
             <Button variant="outline" size="sm" className="rounded-full" onClick={handleShare}>
               <Share2 className="w-4 h-4 mr-1.5" /> Share
             </Button>
           </div>
         </header>
 
-        {/* Products */}
+        {/* ── Products ── */}
         <section>
-          <h2 className="text-2xl font-bold mb-6">Products</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-            {products.map(product => (
-              <ProductCard
+          <h2 className="text-2xl font-bold mb-5">Products</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            {products.map((product, index) => (
+              <motion.div
                 key={product.id}
-                product={product}
-                avgRating={reviews.length > 0 ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : undefined}
-                reviewCount={reviews.length > 0 ? reviews.length : undefined}
-                onClick={() => setSelectedProduct(product)}
-                onBuyNow={() => setSelectedProduct(product)}
-              />
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
+              >
+                <ProductCard
+                  product={product}
+                  avgRating={avgRating ?? undefined}
+                  reviewCount={reviews.length > 0 ? reviews.length : undefined}
+                  onClick={() => setSelectedProduct(product)}
+                  onBuyNow={() => setSelectedProduct(product)}
+                />
+              </motion.div>
             ))}
           </div>
           {products.length === 0 && (
@@ -208,7 +266,7 @@ export default function ShopPage({ slug }: { slug: string }) {
           )}
         </section>
 
-        {/* How to order */}
+        {/* ── How to order ── */}
         <section className="bg-primary/5 border border-primary/20 rounded-3xl p-6 md:p-10">
           <div className="text-center max-w-lg mx-auto">
             <h2 className="text-3xl font-bold mb-6">How to order</h2>
@@ -230,14 +288,13 @@ export default function ShopPage({ slug }: { slug: string }) {
           </div>
         </section>
 
-        {/* Reviews */}
+        {/* ── Reviews ── */}
         <section>
           <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
           <ReviewSection reviews={reviews} />
         </section>
       </main>
 
-      {/* Trial expired notice — gentle, at bottom */}
       {isTrialExpired && (
         <div className="bg-amber-50 border-t border-amber-200 py-3 px-4 text-center text-sm text-amber-700">
           This store's trial has ended. The seller is renewing soon.
@@ -248,6 +305,51 @@ export default function ShopPage({ slug }: { slug: string }) {
         <p className="mb-2">Powered by Shopgram</p>
         <Button variant="link" onClick={() => setLocation("/")}>Create your own free store →</Button>
       </footer>
+
+      {/* ── Floating Pay via UPI button ── */}
+      {(shop.upi_id || shop.upi_qr_url) && (
+        <button
+          onClick={() => setUpiModalOpen(true)}
+          className="fixed bottom-6 right-4 z-40 flex items-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white px-4 py-3 rounded-full shadow-xl transition-all duration-200 font-semibold text-sm"
+        >
+          <QrCode className="w-4 h-4" />
+          Pay via UPI
+        </button>
+      )}
+
+      {/* ── UPI Modal ── */}
+      {upiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setUpiModalOpen(false)} />
+          <div className="relative bg-background rounded-t-3xl md:rounded-3xl w-full max-w-sm mx-auto p-6 shadow-2xl">
+            <button
+              onClick={() => setUpiModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 hover:bg-muted rounded-full transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="text-lg font-bold mb-1 text-center">Pay via UPI</h3>
+            <p className="text-xs text-muted-foreground text-center mb-5">Scan QR or copy UPI ID to pay {shop.shop_name}</p>
+            <div className="flex flex-col items-center gap-4">
+              {shop.upi_qr_url && (
+                <img src={shop.upi_qr_url} alt="UPI QR" className="w-48 h-48 object-contain rounded-2xl border-2 border-muted p-2 bg-white" />
+              )}
+              {shop.upi_id && (
+                <button
+                  onClick={copyUpi}
+                  className="flex items-center gap-2 bg-muted hover:bg-muted/80 px-4 py-2.5 rounded-full transition-colors w-full justify-center"
+                >
+                  <span className="font-mono text-sm font-semibold">{shop.upi_id}</span>
+                  {copiedUpi ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+                </button>
+              )}
+              <p className="text-xs text-muted-foreground text-center">
+                After paying, place your order and upload payment proof during checkout.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProductDrawer
         product={selectedProduct}

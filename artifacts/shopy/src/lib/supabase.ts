@@ -28,6 +28,8 @@ export type Shop = {
   email: string;
   category: string | null;
   delivery_info: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   status: "pending" | "active" | "suspended" | "paused";
   plan: "trial" | "pro" | "expired";
   trial_ends_at: string | null;

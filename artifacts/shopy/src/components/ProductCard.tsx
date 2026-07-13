@@ -9,9 +9,10 @@ interface ProductCardProps {
   reviewCount?: number;
   onClick?: () => void;
   onBuyNow: () => void;
+  animationDelay?: number;
 }
 
-export function ProductCard({ product, avgRating, reviewCount, onClick, onBuyNow }: ProductCardProps) {
+export function ProductCard({ product, avgRating, reviewCount, onClick, onBuyNow, animationDelay = 0 }: ProductCardProps) {
   const imageUrl = product.images && product.images.length > 0
     ? product.images[0]
     : "https://placehold.co/400x400/png";
@@ -19,7 +20,8 @@ export function ProductCard({ product, avgRating, reviewCount, onClick, onBuyNow
 
   return (
     <Card
-      className="overflow-hidden cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col border-0 shadow-md"
+      className="overflow-hidden cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 flex flex-col border-0 shadow-md"
+      style={{ animationDelay: `${animationDelay}ms` }}
       onClick={onClick}
       data-testid={`product-card-${product.id}`}
     >
@@ -38,6 +40,15 @@ export function ProductCard({ product, avgRating, reviewCount, onClick, onBuyNow
           <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
             <Images className="w-3 h-3" />
             <span>{imageCount}</span>
+          </div>
+        )}
+
+        {/* In Stock badge */}
+        {product.in_stock && (
+          <div className="absolute top-2 left-2">
+            <span className="bg-emerald-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm">
+              In Stock
+            </span>
           </div>
         )}
 
