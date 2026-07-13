@@ -14,11 +14,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listen for auth state changes — fires immediately with the current session
-    // from localStorage (no network request needed)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // getSession() reads from localStorage immediately — no network round-trip
+    // This resolves fast so the dashboard starts rendering right away
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
+    });
+
+    // Keep listening for future sign-in / sign-out / token refresh events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
 
     return () => subscription.unsubscribe();
