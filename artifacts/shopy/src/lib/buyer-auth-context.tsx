@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { buyerSupabase } from "./buyer-supabase";
 
 export type BuyerProfile = {
   id: string;
@@ -36,7 +36,7 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   const [buyerLoading, setBuyerLoading] = useState(true);
 
   async function fetchProfile(userId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await buyerSupabase
       .from("buyers")
       .select("*")
       .eq("id", userId)
@@ -50,21 +50,19 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await buyerSupabase.auth.signOut();
     setBuyerSession(null);
     setBuyerProfile(null);
   }
 
   useEffect(() => {
-    // Get initial session — keep loading=true until profile is also fetched
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    buyerSupabase.auth.getSession().then(async ({ data: { session } }) => {
       setBuyerSession(session);
       if (session?.user.id) await fetchProfile(session.user.id);
       setBuyerLoading(false);
     });
 
-    // Listen for login / logout / token refresh events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = buyerSupabase.auth.onAuthStateChange(async (_event, session) => {
       setBuyerSession(session);
       if (session?.user.id) {
         await fetchProfile(session.user.id);

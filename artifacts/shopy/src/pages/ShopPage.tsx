@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductDrawer } from "@/components/ProductDrawer";
 import { ReviewSection } from "@/components/ReviewSection";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { BadgeCheck, Instagram, AlertCircle, Share2, PauseCircle, QrCode, X, Star, Users, Copy, Check } from "lucide-react";
+import { BadgeCheck, Instagram, AlertCircle, Share2, PauseCircle, QrCode, X, Star, Users, Copy, Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [logoError, setLogoError] = useState(false);
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { buyerSession } = useBuyerAuth();
 
   // After login: if a product was pending, open it automatically
@@ -240,30 +241,67 @@ export default function ShopPage({ slug }: { slug: string }) {
 
         {/* ── Products ── */}
         <section>
-          <h2 className="text-2xl font-bold mb-5">Products</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            {products.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
-              >
-                <ProductCard
-                  product={product}
-                  avgRating={avgRating ?? undefined}
-                  reviewCount={reviews.length > 0 ? reviews.length : undefined}
-                  onClick={() => setSelectedProduct(product)}
-                  onBuyNow={() => setSelectedProduct(product)}
-                />
-              </motion.div>
-            ))}
-          </div>
-          {products.length === 0 && (
-            <div className="text-center py-12 bg-muted/30 rounded-xl">
-              <p className="text-muted-foreground">No products available right now.</p>
+          <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+            <h2 className="text-2xl font-bold">Products</h2>
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search products…"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-full border border-input bg-background shadow-xs focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-          )}
+          </div>
+          {(() => {
+            const q = searchQuery.trim().toLowerCase();
+            const filtered = q
+              ? products.filter(p =>
+                  p.name?.toLowerCase().includes(q) ||
+                  p.description?.toLowerCase().includes(q)
+                )
+              : products;
+            return (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                  {filtered.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
+                    >
+                      <ProductCard
+                        product={product}
+                        avgRating={avgRating ?? undefined}
+                        reviewCount={reviews.length > 0 ? reviews.length : undefined}
+                        onClick={() => setSelectedProduct(product)}
+                        onBuyNow={() => setSelectedProduct(product)}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+                {filtered.length === 0 && (
+                  <div className="text-center py-12 bg-muted/30 rounded-xl">
+                    {q ? (
+                      <p className="text-muted-foreground">No products found for "<strong>{searchQuery}</strong>"</p>
+                    ) : (
+                      <p className="text-muted-foreground">No products available right now.</p>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </section>
 
         {/* ── How to order ── */}

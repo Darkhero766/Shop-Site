@@ -81,7 +81,7 @@ export default function DashboardPage() {
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
   // Settings
-  const [settingsForm, setSettingsForm] = useState({ bio: "", whatsapp: "", upi_id: "", delivery_info: "" });
+  const [settingsForm, setSettingsForm] = useState({ shop_name: "", insta_handle: "", category: "", bio: "", whatsapp: "", upi_id: "", delivery_info: "" });
   const [settingsQrFile, setSettingsQrFile] = useState<File | null>(null);
   const [settingsQrPreview, setSettingsQrPreview] = useState<string | null>(null);
   const [settingsLogoFile, setSettingsLogoFile] = useState<File | null>(null);
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         const { data: shopData } = await supabase.from("shops").select("*").eq("email", user.email).maybeSingle();
         if (!shopData) { toast.error("Shop not found"); setIsLoading(false); return; }
         setShop(shopData);
-        setSettingsForm({ bio: shopData.bio ?? "", whatsapp: shopData.whatsapp ?? "", upi_id: shopData.upi_id ?? "", delivery_info: shopData.delivery_info ?? "" });
+        setSettingsForm({ shop_name: shopData.shop_name ?? "", insta_handle: shopData.insta_handle ?? "", category: shopData.category ?? "", bio: shopData.bio ?? "", whatsapp: shopData.whatsapp ?? "", upi_id: shopData.upi_id ?? "", delivery_info: shopData.delivery_info ?? "" });
         setSettingsQrPreview(shopData.upi_qr_url ?? null);
         setSettingsLogoPreview(shopData.logo_url ?? null);
         setSettingsBannerPreview(shopData.banner_url ?? null);
@@ -961,6 +961,44 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
+                    {/* Store Identity */}
+                    <div className="space-y-4 pb-2 border-b">
+                      <p className="text-sm font-semibold text-foreground">Store Identity</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1.5">Shop Name</label>
+                          <Input value={settingsForm.shop_name} onChange={e => setSettingsForm(p => ({ ...p, shop_name: e.target.value }))} placeholder="e.g. Priya's Boutique" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1.5">Category</label>
+                          <select
+                            className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={settingsForm.category}
+                            onChange={e => setSettingsForm(p => ({ ...p, category: e.target.value }))}
+                          >
+                            <option value="">Select category</option>
+                            <option value="Fashion & Clothing">Fashion & Clothing</option>
+                            <option value="Jewellery & Accessories">Jewellery & Accessories</option>
+                            <option value="Beauty & Skincare">Beauty & Skincare</option>
+                            <option value="Home Decor">Home Decor</option>
+                            <option value="Food & Snacks">Food & Snacks</option>
+                            <option value="Art & Handicrafts">Art & Handicrafts</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Kids & Toys">Kids & Toys</option>
+                            <option value="Books & Stationery">Books & Stationery</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1.5">Instagram Handle</label>
+                          <div className="flex">
+                            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm select-none">@</span>
+                            <Input className="rounded-l-none" value={settingsForm.insta_handle} onChange={e => setSettingsForm(p => ({ ...p, insta_handle: e.target.value.replace(/^@/, "") }))} placeholder="yourstorename" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Contact & Payments */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1.5">WhatsApp Number</label>

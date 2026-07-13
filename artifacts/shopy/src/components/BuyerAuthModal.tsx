@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, X, User, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { buyerSupabase } from "@/lib/buyer-supabase";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -67,7 +67,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
     setLoading(true);
     setErrors({});
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await buyerSupabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
     if (error) { setErrors({ general: error.message }); return; }
@@ -79,7 +79,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleForgot = async () => {
     if (!email.includes("@")) { setErrors({ email: "Enter your email first" }); return; }
-    await supabase.auth.resetPasswordForEmail(email);
+    await buyerSupabase.auth.resetPasswordForEmail(email);
     setForgotSent(true);
     toast.success("Password reset email sent!");
   };
@@ -135,7 +135,7 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     setErrors({});
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await buyerSupabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { full_name: form.name } },
@@ -144,7 +144,7 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
     if (error) { setLoading(false); setErrors({ general: error.message }); return; }
 
     if (data.user) {
-      await supabase.from("buyers").upsert({
+      await buyerSupabase.from("buyers").upsert({
         id: data.user.id,
         full_name: form.name,
         phone: form.phone,
@@ -595,7 +595,7 @@ function BuyerProfileSheet({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     if (!buyerSession) return;
     setSaving(true);
-    const { error } = await supabase.from("buyers").upsert(
+    const { error } = await buyerSupabase.from("buyers").upsert(
       {
         id: buyerSession.user.id,
         email: buyerSession.user.email ?? "",
