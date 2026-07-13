@@ -122,8 +122,8 @@ const TESTIMONIALS = [
 ];
 
 const STATS = [
-  { value: "10,000+", label: "Stores created" },
-  { value: "₹5 Cr+", label: "Payments processed" },
+  { value: "10,000*", label: "Stores created" },
+  { value: "₹5 Cr*", label: "Payments processed" },
   { value: "4.9★", label: "Avg seller rating" },
   { value: "0%", label: "Platform fees" },
 ];
@@ -467,7 +467,7 @@ export default function HomePage() {
                       <p className="text-purple-300 text-sm font-semibold uppercase tracking-widest">Pro</p>
                       <span className="bg-purple-500/20 text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-500/30">MOST POPULAR</span>
                     </div>
-                    <p className="text-4xl font-bold text-white mb-1">₹299 <span className="text-xl text-white/40 font-normal">/mo</span></p>
+                    <p className="text-4xl font-bold text-white mb-1">₹99 <span className="text-xl text-white/40 font-normal">/mo</span></p>
                     <p className="text-white/40 text-sm mb-6">Billed monthly · Cancel anytime</p>
                     <ul className="space-y-3 mb-8">
                       {["Everything in Free", "Unlimited products", "Custom domain support", "Priority support", "Advanced analytics", "Early access to new features"].map((f, i) => (
