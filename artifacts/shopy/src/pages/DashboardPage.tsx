@@ -6,7 +6,7 @@ import {
   Store, LogOut, Package, ShoppingBag, Star, LayoutDashboard,
   Copy, Check, Plus, Trash2, Pencil, X, Settings as SettingsIcon,
   TrendingUp, Clock, Search, ChevronRight, ExternalLink, Instagram,
-  Phone, MapPin, Hash, StickyNote, CreditCard, AlertTriangle, CheckCircle2,
+  Phone, MapPin, Hash, StickyNote, CreditCard, AlertTriangle, CheckCircle2, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,10 +91,16 @@ export default function DashboardPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
+  // Visit stats
+  const [visitCount, setVisitCount] = useState<number>(0);
+  const [todayVisitCount, setTodayVisitCount] = useState<number>(0);
+
   useEffect(() => {
     if (authLoading) return;
     if (!session) { setLocation("/login"); return; }
     const user = session.user;
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
     async function loadData() {
       try {
         const { data: shopData } = await supabase.from("shops").select("*").eq("email", user.email).maybeSingle();
@@ -104,18 +110,48 @@ export default function DashboardPage() {
         setSettingsQrPreview(shopData.upi_qr_url ?? null);
         setSettingsLogoPreview(shopData.logo_url ?? null);
         setSettingsBannerPreview(shopData.banner_url ?? null);
-        const [prodRes, orderRes, revRes] = await Promise.all([
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const [prodRes, orderRes, revRes, totalVisitRes, todayVisitRes] = await Promise.all([
           supabase.from("products").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
           supabase.from("orders").select("*, products(name)").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
           supabase.from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
+          supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id),
+          supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id).gte("visited_at", todayStart.toISOString()),
         ]);
         if (prodRes.data) setProducts(prodRes.data);
         if (orderRes.data) setOrders(orderRes.data as Order[]);
         if (revRes.data) setReviews(revRes.data);
+        setVisitCount(totalVisitRes.count ?? 0);
+        setTodayVisitCount(todayVisitRes.count ?? 0);
+
+        // Subscribe to real-time new visits
+        realtimeChannel = supabase
+          .channel(`shop-visits-${shopData.id}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "shop_visits", filter: `shop_id=eq.${shopData.id}` },
+            () => {
+              setVisitCount(prev => prev + 1);
+              const now = new Date();
+              const isToday = now.getHours() >= 0; // always true; check date
+              const visitDate = new Date();
+              if (visitDate.toDateString() === new Date().toDateString()) {
+                setTodayVisitCount(prev => prev + 1);
+              }
+            }
+          )
+          .subscribe();
       } catch (err) { console.error(err); }
       finally { setIsLoading(false); }
     }
     loadData();
+
+    return () => {
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+    };
   }, [authLoading, session, setLocation]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); setLocation("/login"); };
@@ -485,6 +521,35 @@ export default function DashboardPage() {
                         <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
                           <Star className="w-4 h-4 text-yellow-500 fill-yellow-400" />
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Store Visits — full-width, live via Supabase Realtime */}
+                  <Card className="col-span-2 border-l-4 border-l-sky-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center shrink-0">
+                            <Eye className="w-4 h-4 text-sky-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground font-medium mb-0.5">Store Visits</p>
+                            <p className="text-xl md:text-2xl font-extrabold text-sky-600">
+                              {visitCount.toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-muted-foreground font-medium mb-0.5">Today</p>
+                          <p className="text-xl md:text-2xl font-extrabold text-sky-500">
+                            +{todayVisitCount.toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <p className="text-xs text-muted-foreground">Live — updates instantly when someone visits your store</p>
                       </div>
                     </CardContent>
                   </Card>

@@ -64,6 +64,19 @@ export default function ShopPage({ slug }: { slug: string }) {
 
         setShop(shopData);
 
+        // Track this store visit (deduplicated per browser session)
+        const sessionKey = `visited-${shopData.id}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          let sid = localStorage.getItem("shopgram-session-id");
+          if (!sid) {
+            sid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem("shopgram-session-id", sid);
+          }
+          sessionStorage.setItem(sessionKey, "1");
+          // fire-and-forget — don't block the UI
+          supabase.from("shop_visits").insert({ shop_id: shopData.id, session_id: sid }).then(() => {});
+        }
+
         const [prodRes, reviewRes, orderRes] = await Promise.all([
           supabase.from("products").select("*").eq("shop_id", shopData.id).eq("in_stock", true).order("created_at", { ascending: false }),
           supabase.from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
