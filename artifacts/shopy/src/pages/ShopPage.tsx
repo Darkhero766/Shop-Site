@@ -72,9 +72,17 @@ export default function ShopPage({ slug }: { slug: string }) {
             sid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
             localStorage.setItem("shopgram-session-id", sid);
           }
-          sessionStorage.setItem(sessionKey, "1");
-          // fire-and-forget — don't block the UI
-          supabase.from("shop_visits").insert({ shop_id: shopData.id, session_id: sid }).then(() => {});
+          // Only mark as visited after a successful insert
+          supabase
+            .from("shop_visits")
+            .insert({ shop_id: shopData.id, session_id: sid })
+            .then(({ error }) => {
+              if (error) {
+                console.error("[Shopgram] visit tracking failed:", error.message, error.code, error.details);
+              } else {
+                sessionStorage.setItem(sessionKey, "1");
+              }
+            });
         }
 
         const [prodRes, reviewRes, orderRes] = await Promise.all([
