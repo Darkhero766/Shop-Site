@@ -122,8 +122,8 @@ const TESTIMONIALS = [
 ];
 
 const STATS = [
-  { value: "10,000*", label: "Stores created" },
-  { value: "₹5 Cr*", label: "Payments processed" },
+  { value: "5 min", label: "Average store setup" },
+  { value: "WhatsApp", label: "Order alerts built-in" },
   { value: "4.9★", label: "Avg seller rating" },
   { value: "0%", label: "Platform fees" },
 ];
