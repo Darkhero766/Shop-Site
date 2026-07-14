@@ -16,6 +16,8 @@ interface ProductDrawerProps {
   onOrder?: (size: string | null, qty: number) => void;
   reviews?: Review[];
   shopName?: string;
+  allProducts?: Product[];
+  onProductSelect?: (product: Product) => void;
 }
 
 function useIsMobile() {
@@ -32,7 +34,7 @@ function useIsMobile() {
 }
 
 export function ProductDrawer({
-  product, isOpen, onClose, onOrder, reviews = [], shopName,
+  product, isOpen, onClose, onOrder, reviews = [], shopName, allProducts = [], onProductSelect,
 }: ProductDrawerProps) {
   const isMobile = useIsMobile();
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
@@ -336,6 +338,43 @@ export function ProductDrawer({
           <p className="text-xs text-muted-foreground text-center py-1">Be the first to review this product ✨</p>
         )}
       </div>
+
+      {/* More from this store */}
+      {allProducts.filter(p => p.id !== product.id && p.in_stock).length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-gray-100" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">More from this store</p>
+            <div className="h-px flex-1 bg-gray-100" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {allProducts
+              .filter(p => p.id !== product.id && p.in_stock)
+              .slice(0, 6)
+              .map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => onProductSelect?.(p)}
+                  className="text-left rounded-xl border overflow-hidden bg-white hover:shadow-md active:scale-[0.98] transition-all group"
+                >
+                  <div className="aspect-square bg-gray-50 overflow-hidden">
+                    {p.images?.[0] ? (
+                      <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-8 h-8 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs font-semibold line-clamp-2 leading-snug mb-1">{p.name}</p>
+                    <p className="text-sm font-bold text-primary">₹{p.price}</p>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 

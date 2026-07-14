@@ -43,6 +43,10 @@ export default function JoinPage() {
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Logo state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
   // QR state
   const [qrFile, setQrFile] = useState<File | null>(null);
   const [qrPreview, setQrPreview] = useState<string | null>(null);
@@ -151,7 +155,16 @@ export default function JoinPage() {
         if (signInErr) throw new Error("Account created but couldn't sign in automatically. Please verify your email then log in.");
       }
 
-      // 2. Upload QR
+      // 2. Upload logo
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        const path = `${s1.subdomain}/logo_${Date.now()}`;
+        const { url: uploadedLogo, error: logoErr } = await uploadImage("Product-images", logoFile, path);
+        if (logoErr) toast.error(`Logo upload failed: ${logoErr}. You can re-upload from Settings.`);
+        logoUrl = uploadedLogo;
+      }
+
+      // 3. Upload QR
       let qrUrl: string | null = null;
       if (qrFile) {
         const path = `${s1.subdomain}/${Date.now()}_qr`;
@@ -160,7 +173,7 @@ export default function JoinPage() {
         qrUrl = uploadedQr;
       }
 
-      // 3. Create Shop
+      // 4. Create Shop
       const { data: shopData, error: shopErr } = await supabase.from("shops").insert({
         shop_name: s1.shop_name,
         subdomain: s1.subdomain,
@@ -171,6 +184,7 @@ export default function JoinPage() {
         email: s1.email,
         upi_id: s2.upi_id,
         upi_qr_url: qrUrl,
+        logo_url: logoUrl,
         delivery_info: s2.delivery_info,
         status: "pending",
         plan: "trial",
@@ -243,6 +257,31 @@ export default function JoinPage() {
 
             <Form {...form1}>
               <form onSubmit={form1.handleSubmit(onStep1Submit)} className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm">
+
+                {/* Logo Upload */}
+                <div className="flex items-center gap-5 pb-2 border-b">
+                  <div className="relative shrink-0">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo preview" className="w-20 h-20 rounded-full object-cover border-2 border-primary/30 shadow" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-dashed border-primary/30">
+                        <Store className="w-8 h-8 text-primary/50" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm mb-0.5">Shop Logo</p>
+                    <p className="text-xs text-muted-foreground mb-2">Upload your store's profile photo or logo</p>
+                    <ImageUpload
+                      onUpload={(file) => {
+                        setLogoFile(file);
+                        setLogoPreview(file ? URL.createObjectURL(file) : null);
+                      }}
+                      label="Upload logo"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <FormField control={form1.control} name="shop_name" render={({ field }) => (
                     <FormItem>

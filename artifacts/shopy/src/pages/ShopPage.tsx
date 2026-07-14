@@ -566,6 +566,8 @@ export default function ShopPage({ slug }: { slug: string }) {
         product={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        allProducts={products}
+        onProductSelect={(p) => setSelectedProduct(p)}
         onOrder={(size, qty) => {
           if (!selectedProduct) return;
           if (!buyerSession) {

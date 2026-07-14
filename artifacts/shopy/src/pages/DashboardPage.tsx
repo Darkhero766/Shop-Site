@@ -86,8 +86,6 @@ export default function DashboardPage() {
   const [settingsQrPreview, setSettingsQrPreview] = useState<string | null>(null);
   const [settingsLogoFile, setSettingsLogoFile] = useState<File | null>(null);
   const [settingsLogoPreview, setSettingsLogoPreview] = useState<string | null>(null);
-  const [settingsBannerFile, setSettingsBannerFile] = useState<File | null>(null);
-  const [settingsBannerPreview, setSettingsBannerPreview] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
@@ -109,7 +107,6 @@ export default function DashboardPage() {
         setSettingsForm({ shop_name: shopData.shop_name ?? "", insta_handle: shopData.insta_handle ?? "", category: shopData.category ?? "", bio: shopData.bio ?? "", whatsapp: shopData.whatsapp ?? "", upi_id: shopData.upi_id ?? "", delivery_info: shopData.delivery_info ?? "" });
         setSettingsQrPreview(shopData.upi_qr_url ?? null);
         setSettingsLogoPreview(shopData.logo_url ?? null);
-        setSettingsBannerPreview(shopData.banner_url ?? null);
 
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
@@ -287,20 +284,13 @@ export default function DashboardPage() {
         if (error) toast.error(`Logo upload failed: ${error}`);
         if (url) logoUrl = url;
       }
-      let bannerUrl = shop.banner_url ?? null;
-      if (settingsBannerFile) {
-        const { url, error } = await uploadImage("Product-images", settingsBannerFile, `${shop.subdomain}/banner_${Date.now()}`);
-        if (error) toast.error(`Banner upload failed: ${error}`);
-        if (url) bannerUrl = url;
-      }
       const { error } = await supabase.from("shops").update({
         ...settingsForm,
         upi_qr_url: qrUrl,
         logo_url: logoUrl,
-        banner_url: bannerUrl,
       }).eq("id", shop.id);
       if (error) throw error;
-      setShop(prev => prev ? { ...prev, ...settingsForm, upi_qr_url: qrUrl, logo_url: logoUrl, banner_url: bannerUrl } : prev);
+      setShop(prev => prev ? { ...prev, ...settingsForm, upi_qr_url: qrUrl, logo_url: logoUrl } : prev);
       toast.success("Settings saved");
     } catch (err: any) { toast.error(err.message || "Failed to save settings"); }
     finally { setIsSavingSettings(false); }
@@ -997,33 +987,18 @@ export default function DashboardPage() {
                     {/* Shop Appearance */}
                     <div className="space-y-4 pb-2 border-b">
                       <p className="text-sm font-semibold text-foreground">Shop Appearance</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1.5">Shop Logo / Avatar</label>
-                          {settingsLogoPreview && (
-                            <img src={settingsLogoPreview} alt="Logo" className="w-16 h-16 rounded-full object-cover border mb-2" />
-                          )}
-                          <ImageUpload
-                            onFileSelect={file => {
-                              setSettingsLogoFile(file);
-                              setSettingsLogoPreview(file ? URL.createObjectURL(file) : (shop.logo_url ?? null));
-                            }}
-                            label="Upload logo photo"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1.5">Cover Banner</label>
-                          {settingsBannerPreview && (
-                            <img src={settingsBannerPreview} alt="Banner" className="w-full h-16 rounded-lg object-cover border mb-2" />
-                          )}
-                          <ImageUpload
-                            onFileSelect={file => {
-                              setSettingsBannerFile(file);
-                              setSettingsBannerPreview(file ? URL.createObjectURL(file) : (shop.banner_url ?? null));
-                            }}
-                            label="Upload banner image"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5">Shop Logo / Avatar</label>
+                        {settingsLogoPreview && (
+                          <img src={settingsLogoPreview} alt="Logo" className="w-16 h-16 rounded-full object-cover border mb-2" />
+                        )}
+                        <ImageUpload
+                          onFileSelect={file => {
+                            setSettingsLogoFile(file);
+                            setSettingsLogoPreview(file ? URL.createObjectURL(file) : (shop.logo_url ?? null));
+                          }}
+                          label="Upload logo photo"
+                        />
                       </div>
                     </div>
                     {/* Store Identity */}
