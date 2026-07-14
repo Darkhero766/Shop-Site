@@ -438,21 +438,7 @@ export default function ExplorePage() {
             <span className="text-gray-900">Shopgram</span>
           </Link>
 
-          {/* search in nav on desktop */}
-          <div className="hidden md:flex flex-1 max-w-lg relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products, stores…"
-              className="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
-              </button>
-            )}
-          </div>
+          <div className="flex-1" />
 
           <div className="flex gap-3 items-center">
             <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden md:block">Login</Link>
@@ -582,17 +568,6 @@ export default function ExplorePage() {
             {filtered.length} products
           </div>
           <div className="flex-1 h-px bg-gray-100" />
-        </div>
-
-        {/* ── MOBILE SEARCH ── */}
-        <div className="md:hidden mb-6 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products, stores…"
-            className="w-full pl-10 pr-4 py-3 rounded-full border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-          />
         </div>
 
         {/* ── PRODUCT GRID ── */}
