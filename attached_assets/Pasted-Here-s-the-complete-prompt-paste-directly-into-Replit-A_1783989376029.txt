@@ -1,0 +1,147 @@
+Here's the complete prompt — paste directly into Replit AI:
+
+---
+
+> "Create a stunning explore page at `shopgram.in/explore` that showcases all products from all active shops. This is the most important marketing page of ShopGram — it should look absolutely beautiful, feel like browsing a premium Indian marketplace, and make buyers want to buy and sellers want to join.
+>
+> **Overall design direction**
+> Dark-to-light gradient background — deep purple `#0D0618` at top fading to soft white `#FAF8FF` by the product grid. Feels premium, modern, slightly luxurious. Like a high-end Indian boutique gone digital. Font: Playfair Display for headings (elegant, Indian market friendly), DM Sans for body (clean, readable). Primary accent: `#7C3AED` purple. Gold accent: `#F59E0B` for highlights and badges. Every element should feel intentional and curated — not a default marketplace grid.
+>
+> **Hero section (top of page)**
+> Full width dark purple gradient section:
+> - Eyebrow text in gold small caps: `DISCOVER · SHOP · SUPPORT SMALL`
+> - Main headline in Playfair Display 56px white: `India's Finest Instagram Stores`
+> - Subheading in DM Sans 18px light grey: `Handpicked products from verified sellers — pay directly via UPI`
+> - Animated stats bar below headline showing 3 live numbers pulled from Supabase:
+>   ```
+>   [X] Active Stores  ·  [X] Products  ·  [X] Happy Buyers
+>   ```
+>   Numbers count up with a smooth animation on page load
+> - Search bar: wide, centered, white background, rounded-full, purple focus ring, placeholder: `Search products, stores, categories...` with a search icon left and keyboard shortcut hint right
+> - Category pill filters below search bar (horizontal scroll on mobile):
+>   ```
+>   All  💍 Jewellery  👗 Clothes  🕯️ Candles  
+>   🍱 Food  🎨 Handmade  👜 Accessories  🌿 Other
+>   ```
+>   Selected pill: gold background dark text. Unselected: white/10 background white text.
+>
+> **Trending section**
+> Below hero, white background section:
+> - Section label in purple small caps: `TRENDING NOW`
+> - Horizontal scroll row of 6 featured product cards (largest cards on page)
+> - Each featured card: 280x320px, rounded-2xl, product image fills top 65%, product name bold, shop name in purple with verified tick, price in gold, `Shop Now` button
+> - Subtle drop shadow, hover lifts card 4px with shadow deepening
+> - Left/right arrow buttons to scroll the row
+>
+> **Main product grid**
+> Masonry grid layout (like Pinterest) — NOT a uniform grid:
+> - Desktop: 4 columns
+> - Tablet: 3 columns
+> - Mobile: 2 columns
+> - Cards have different heights based on image aspect ratio — creates dynamic visual rhythm
+> - Each product card:
+>   ```
+>   [Product image — fills full width, variable height]
+>   [Shop avatar tiny circle + shop name + verified badge]
+>   [Product name — bold, 2 lines max, ellipsis]
+>   [Price in purple bold]
+>   [Star rating if reviews exist]
+>   [Buy Now button — appears on hover on desktop, always visible on mobile]
+>   ```
+> - Card background: white, border-radius 16px, subtle border `1px solid #F0EEFF`
+> - On hover: entire card lifts 6px, border turns purple, Buy Now button slides up from bottom
+> - Clicking card opens product detail bottom sheet (mobile) or modal (desktop) — do not navigate away from explore page
+>
+> **Product detail modal/bottom sheet**
+> Triggered by clicking any product card:
+> - Desktop: centered modal, max-width 800px, left side image gallery, right side details
+> - Mobile: bottom sheet slides up, full width, scrollable
+> - Contents: product images swipeable, shop name + avatar + verified badge, product name large, price in gold large, description, size selector pills if applicable, reviews preview (latest 2), big `Buy Now — ₹[price]` purple button that goes to checkout
+> - Backdrop blur behind modal
+> - Close with X button or clicking backdrop
+>
+> **Shop spotlight section**
+> Below first 12 products, break the grid with a full-width shop spotlight:
+> - Dark purple background section
+> - Label: `FEATURED STORE`
+> - Show one random active shop: their banner image or gradient, shop name large, category, product count, review count, `Visit Store →` button
+> - Rotates to different shop each page load
+>
+> **Continue product grid**
+> More products below spotlight section continuing the masonry grid
+>
+> **Category sections**
+> After the main grid, show dedicated sections per category:
+> ```
+> 💍 Jewellery Picks
+> [horizontal scroll of jewellery products]
+>
+> 🕯️ Handmade & Candles  
+> [horizontal scroll of handmade products]
+>
+> 👗 Fashion Finds
+> [horizontal scroll of clothes products]
+> ```
+> Each section: category name left, `See all →` right, horizontal scrollable row of cards
+>
+> **Join as seller CTA section**
+> Before footer, full width section:
+> - Split design: left side dark purple with text, right side showing a mock store page screenshot
+> - Headline: `Sell smarter. Not harder.`
+> - Subtext: `Join 50+ sellers already getting orders without DM chaos`
+> - 3 feature pills: `✓ Free forever` `✓ UPI built in` `✓ Verified reviews`
+> - Big white button: `Create your free store →` links to /join
+>
+> **Data from Supabase**
+> Fetch all products where shop status = active and product in_stock = true. Join with shops table to get shop name, subdomain, verified status, avatar. Join with reviews to get average rating per product. Sort by: newest first as default. Limit 50 products per page with infinite scroll — load 12 more when user reaches bottom.
+>
+> **Search functionality**
+> Search input filters products in real time (debounced 300ms) by:
+> - Product name
+> - Shop name  
+> - Product description
+> No page reload — instant filter using already-fetched data
+>
+> **Infinite scroll**
+> When user scrolls to bottom of page fetch next 12 products from Supabase and append to masonry grid with a fade-in animation. Show a subtle loading spinner between batches. Show `You've seen everything! 🎉` message when all products loaded.
+>
+> **Animations**
+> - Hero stats count up from 0 on page load: `0 → 47 stores` in 1.5 seconds
+> - Product cards fade in staggered — each card appears 50ms after previous
+> - Category pills slide in from left on load
+> - Search bar has a subtle pulse animation for 2 seconds on load to draw attention
+> - Featured card hover: smooth 200ms lift
+> - Modal: fade + scale in from 95% to 100%
+> - Bottom sheet: slide up 300ms cubic-bezier
+>
+> **Performance**
+> - Lazy load all product images using Intersection Observer
+> - Blur-up placeholder while images load (show tiny blurred version first)
+> - Debounce search input 300ms
+> - Only fetch products for visible category on initial load
+>
+> **SEO meta tags for explore page**
+> ```html
+> <title>Explore Indian Instagram Stores — ShopGram</title>
+> <meta name='description' content='Discover handmade jewellery, clothes, candles and more from verified Indian Instagram sellers. Pay via UPI. Real reviews only.'/>
+> <meta property='og:title' content='ShopGram — India's Instagram Marketplace'/>
+> <meta property='og:image' content='https://shopgram.in/opengraph.jpg'/>
+> ```
+>
+> **Mobile specific**
+> - Category pills: horizontal scroll, hide scrollbar, snap scrolling
+> - Masonry grid: 2 columns, 12px gap
+> - Product cards: slightly taller image ratio
+> - Bottom nav bar stays visible while browsing explore
+> - Share button on each product card opens native share sheet
+> - Tap anywhere on card (not just button) opens the detail sheet
+>
+> **Empty states**
+> - No products found in search: large emoji 🔍, `Nothing found for '[query]'`, `Try 'jewellery' or 'candles'` suggestion pills
+> - Category empty: `No [category] products yet — check back soon!` with a link to other categories
+> - Network error: `Couldn't load products. Check your connection.` with retry button
+>
+> **Add link to explore page**
+> - In main homepage hero: `Browse products →` link next to the CTA
+> - In shop page footer: `Discover more stores on ShopGram →`
+> - In seller dashboard overview: `Your products appear on explore page` with link"

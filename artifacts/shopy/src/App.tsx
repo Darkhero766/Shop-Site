@@ -15,6 +15,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import AdminPage from "@/pages/AdminPage";
 import CheckoutFlow from "@/pages/CheckoutFlow";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import ExplorePage from "@/pages/ExplorePage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/s/:shopSlug/product/:productId">
         {(params) => <CheckoutFlow shopSlug={params.shopSlug!} productId={params.productId!} />}
       </Route>
+      <Route path="/explore" component={ExplorePage} />
       <Route path="/join" component={JoinPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/dashboard" component={DashboardPage} />

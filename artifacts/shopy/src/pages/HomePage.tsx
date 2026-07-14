@@ -209,6 +209,9 @@ export default function HomePage() {
               <a href="#how" className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-1.5">
                 See how it works <ChevronRight className="w-4 h-4" />
               </a>
+              <Link href="/explore" className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-1.5">
+                Browse products <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
 
             <p className="mt-5 text-xs text-white/30 flex items-center gap-2">
