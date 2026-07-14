@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import shopgramLogo from "@assets/IMG_0099_1783990242692.png";
+import shopgramLogo from "@assets/IMG_0100_1783990707990.png";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import type { Shop, Product } from "@/lib/supabase";
@@ -432,9 +432,9 @@ export default function ExplorePage() {
       {/* ── NAV ── */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg shrink-0">
-            <img src={shopgramLogo} alt="Shopgram" className="w-8 h-8 object-contain" />
-            <span className="text-gray-900">Shopgram</span>
+          <Link href="/" className="flex items-center gap-1 font-bold text-lg shrink-0">
+            <img src={shopgramLogo} alt="Shopgram" className="w-14 h-14 object-contain -my-2" style={{ mixBlendMode: "multiply" }} />
+            <span className="text-gray-900 text-xl">Shopgram</span>
           </Link>
 
           <div className="flex-1" />
