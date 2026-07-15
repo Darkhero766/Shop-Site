@@ -139,7 +139,8 @@ export default function HomePage() {
     let sid = localStorage.getItem("shopgram-session-id");
     if (!sid) { sid = `${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem("shopgram-session-id", sid); }
     supabase.from("page_visits").insert({ page: "home", session_id: sid }).then(({ error }) => {
-      if (!error) sessionStorage.setItem(key, "1");
+      if (error) console.error("[Shopgram] page visit tracking failed (home):", error.message, error.code);
+      else sessionStorage.setItem(key, "1");
     });
   }, []);
 
