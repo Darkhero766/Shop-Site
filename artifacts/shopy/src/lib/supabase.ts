@@ -92,7 +92,8 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .trim();
+    .trim()
+    .replace(/^-+|-+$/g, ""); // strip any leading/trailing hyphens
 }
 
 export async function checkSubdomainAvailability(subdomain: string): Promise<boolean> {
