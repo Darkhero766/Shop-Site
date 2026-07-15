@@ -6,8 +6,9 @@ import {
   ChevronRight, Sparkles, Globe, IndianRupee,
 } from "lucide-react";
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 /* ─── tiny helpers ─── */
 function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -131,6 +132,16 @@ const STATS = [
 export default function HomePage() {
   const { session, loading } = useAuth();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const key = "sgpv-home";
+    if (sessionStorage.getItem(key)) return;
+    let sid = localStorage.getItem("shopgram-session-id");
+    if (!sid) { sid = `${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem("shopgram-session-id", sid); }
+    supabase.from("page_visits").insert({ page: "home", session_id: sid }).then(({ error }) => {
+      if (!error) sessionStorage.setItem(key, "1");
+    });
+  }, []);
 
   if (!loading && session) {
     setLocation("/dashboard");

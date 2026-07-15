@@ -319,6 +319,16 @@ export default function ExplorePage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const trendingRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const key = "sgpv-explore";
+    if (sessionStorage.getItem(key)) return;
+    let sid = localStorage.getItem("shopgram-session-id");
+    if (!sid) { sid = `${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem("shopgram-session-id", sid); }
+    supabase.from("page_visits").insert({ page: "explore", session_id: sid }).then(({ error }) => {
+      if (!error) sessionStorage.setItem(key, "1");
+    });
+  }, []);
+
   /* fetch products */
   const fetchProducts = useCallback(async (pageNum: number, reset = false) => {
     if (reset) setLoading(true); else setLoadingMore(true);
