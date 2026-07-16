@@ -2,6 +2,41 @@ import { useEffect, useState } from "react";
 import { generateUPIQRCode, generateUPILink, detectUPIApp, validateUPIId } from "@/lib/upi";
 import { Copy, CheckCircle, Smartphone } from "lucide-react";
 
+function PhonePeLogo({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="#5f259f"/>
+      <path d="M13 10h8.5c3.6 0 6.5 2.9 6.5 6.5S25.1 23 21.5 23H18v7h-5V10zm5 9h3.5c.8 0 1.5-.7 1.5-1.5S22.3 16 21.5 16H18v3z" fill="white"/>
+    </svg>
+  );
+}
+
+function GPayLogo({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="white" stroke="#e5e7eb" strokeWidth="1"/>
+      <text x="50%" y="56%" dominantBaseline="middle" textAnchor="middle" fontSize="13" fontWeight="700" fontFamily="Arial,sans-serif">
+        <tspan fill="#4285F4">G</tspan><tspan fill="#1a1a1a">Pay</tspan>
+      </text>
+    </svg>
+  );
+}
+
+function PaytmLogo({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="#00BAF2"/>
+      <text x="50%" y="57%" dominantBaseline="middle" textAnchor="middle" fontSize="9" fontWeight="800" fill="white" fontFamily="Arial,sans-serif" letterSpacing="0.5">PAYTM</text>
+    </svg>
+  );
+}
+
+const APP_LOGOS: Record<string, React.FC<{ size?: number }>> = {
+  PhonePe: PhonePeLogo,
+  GPay: GPayLogo,
+  Paytm: PaytmLogo,
+};
+
 interface UPIPaymentProps {
   upiId: string;
   shopName: string;
@@ -128,21 +163,28 @@ export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitte
         <div className="w-full space-y-2">
           <a
             href={upiLink}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold py-4 rounded-full text-base shadow-lg active:scale-95 transition-transform"
+            className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold py-4 rounded-full text-base shadow-lg active:scale-95 transition-transform"
           >
-            <Smartphone className="w-5 h-5" />
-            {detectedApp ? `Pay with ${detectedApp.icon} ${detectedApp.name}` : "Open UPI App to Pay"}
+            {detectedApp && APP_LOGOS[detectedApp.name]
+              ? (() => { const Logo = APP_LOGOS[detectedApp.name]; return <Logo size={22} />; })()
+              : <Smartphone className="w-5 h-5" />
+            }
+            {detectedApp ? `Pay with ${detectedApp.name}` : "Open UPI App to Pay"}
           </a>
           <div className="flex gap-2">
-            {appLinks.map(app => (
-              <a
-                key={app.name}
-                href={app.url}
-                className="flex-1 flex items-center justify-center gap-1 text-xs font-medium bg-muted hover:bg-muted/70 border border-border rounded-full py-2 transition-colors"
-              >
-                <span>{app.icon}</span> {app.name}
-              </a>
-            ))}
+            {appLinks.map(app => {
+              const Logo = APP_LOGOS[app.name];
+              return (
+                <a
+                  key={app.name}
+                  href={app.url}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium bg-muted hover:bg-muted/70 border border-border rounded-full py-2.5 transition-colors"
+                >
+                  {Logo ? <Logo size={18} /> : null}
+                  {app.name}
+                </a>
+              );
+            })}
           </div>
         </div>
       )}
