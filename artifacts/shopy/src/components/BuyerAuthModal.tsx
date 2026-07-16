@@ -71,7 +71,15 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     const { data, error } = await buyerSupabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
-    if (error) { setErrors({ general: error.message }); return; }
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+        setErrors({ general: "Please confirm your email first — check your inbox for a verification link." });
+      } else {
+        setErrors({ general: error.message });
+      }
+      return;
+    }
 
     const name = data.user?.user_metadata?.full_name ?? email.split("@")[0];
     toast.success(`Welcome back, ${name}! 👋`, { duration: 3000 });
@@ -120,6 +128,7 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Partial<typeof form & { general: string }>>({});
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   const set = (k: keyof typeof form) => (v: string) => { setForm(f => ({ ...f, [k]: v })); setErrors({}); };
 
@@ -151,13 +160,39 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
         phone: form.phone,
         email: form.email,
       });
-      await refreshProfile();
     }
 
     setLoading(false);
+
+    if (!data.session) {
+      setConfirmationSent(true);
+      return;
+    }
+
+    await refreshProfile();
     toast.success(`Welcome, ${form.name}! 🎉`, { duration: 3000 });
     onSuccess();
   };
+
+  if (confirmationSent) {
+    return (
+      <div className="py-8 text-center space-y-4">
+        <div className="text-5xl">📧</div>
+        <h3 className="font-bold text-lg">Check your email</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          We've sent a confirmation link to <span className="font-semibold text-foreground">{form.email}</span>.
+          <br />Click it to verify your account, then log in below.
+        </p>
+        <button
+          type="button"
+          onClick={() => setConfirmationSent(false)}
+          className="text-sm text-purple-600 hover:underline font-medium"
+        >
+          ← Back to sign up
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSignup} className="space-y-4 pt-2">
