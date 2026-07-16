@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, X, User, Loader2 } from "lucide-react";
 import { buyerSupabase } from "@/lib/buyer-supabase";
+import { supabase } from "@/lib/supabase";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
