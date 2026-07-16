@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MiniQRPreview } from "@/components/UPIPayment";
+import { validateUPIId } from "@/lib/upi";
 
 type ProductForm = { name: string; price: number; description: string; sizes: string; in_stock: boolean };
 const emptyForm: ProductForm = { name: "", price: 0, description: "", sizes: "", in_stock: true };
