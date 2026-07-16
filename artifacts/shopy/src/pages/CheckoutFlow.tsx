@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { supabase, Shop, Product, uploadImage } from "@/lib/supabase";
+import { buyerSupabase } from "@/lib/buyer-supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
