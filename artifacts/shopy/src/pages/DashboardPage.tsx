@@ -82,8 +82,6 @@ export default function DashboardPage() {
 
   // Settings
   const [settingsForm, setSettingsForm] = useState({ shop_name: "", insta_handle: "", category: "", bio: "", whatsapp: "", upi_id: "", delivery_info: "" });
-  const [settingsQrFile, setSettingsQrFile] = useState<File | null>(null);
-  const [settingsQrPreview, setSettingsQrPreview] = useState<string | null>(null);
   const [settingsLogoFile, setSettingsLogoFile] = useState<File | null>(null);
   const [settingsLogoPreview, setSettingsLogoPreview] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -105,7 +103,6 @@ export default function DashboardPage() {
         if (!shopData) { toast.error("Shop not found"); setIsLoading(false); return; }
         setShop(shopData);
         setSettingsForm({ shop_name: shopData.shop_name ?? "", insta_handle: shopData.insta_handle ?? "", category: shopData.category ?? "", bio: shopData.bio ?? "", whatsapp: shopData.whatsapp ?? "", upi_id: shopData.upi_id ?? "", delivery_info: shopData.delivery_info ?? "" });
-        setSettingsQrPreview(shopData.upi_qr_url ?? null);
         setSettingsLogoPreview(shopData.logo_url ?? null);
 
         const todayStart = new Date();
@@ -272,12 +269,6 @@ export default function DashboardPage() {
     if (!shop) return;
     setIsSavingSettings(true);
     try {
-      let qrUrl = shop.upi_qr_url;
-      if (settingsQrFile) {
-        const { url, error } = await uploadImage("Upi-qr", settingsQrFile, `${shop.subdomain}/${Date.now()}_qr`);
-        if (error) toast.error(`QR upload failed: ${error}`);
-        if (url) qrUrl = url;
-      }
       let logoUrl = shop.logo_url ?? null;
       if (settingsLogoFile) {
         const { url, error } = await uploadImage("Product-images", settingsLogoFile, `${shop.subdomain}/logo_${Date.now()}`);
@@ -286,11 +277,10 @@ export default function DashboardPage() {
       }
       const { error } = await supabase.from("shops").update({
         ...settingsForm,
-        upi_qr_url: qrUrl,
         logo_url: logoUrl,
       }).eq("id", shop.id);
       if (error) throw error;
-      setShop(prev => prev ? { ...prev, ...settingsForm, upi_qr_url: qrUrl, logo_url: logoUrl } : prev);
+      setShop(prev => prev ? { ...prev, ...settingsForm, logo_url: logoUrl } : prev);
       toast.success("Settings saved");
     } catch (err: any) { toast.error(err.message || "Failed to save settings"); }
     finally { setIsSavingSettings(false); }
@@ -1052,8 +1042,14 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1.5">UPI ID</label>
-                        <Input value={settingsForm.upi_id} onChange={e => setSettingsForm(p => ({ ...p, upi_id: e.target.value }))}
-                          placeholder="yourname@upi" data-testid="settings-upi" />
+                        <div className="flex items-center gap-2">
+                          <Input value={settingsForm.upi_id} onChange={e => setSettingsForm(p => ({ ...p, upi_id: e.target.value }))}
+                            placeholder="yourname@paytm" data-testid="settings-upi" />
+                          {validateUPIId(settingsForm.upi_id) && (
+                            <span className="text-emerald-500 text-xs font-semibold whitespace-nowrap">✓ Valid</span>
+                          )}
+                        </div>
+                        <MiniQRPreview upiId={settingsForm.upi_id} shopName={shop?.shop_name ?? "Your Shop"} />
                       </div>
                     </div>
                     <div>

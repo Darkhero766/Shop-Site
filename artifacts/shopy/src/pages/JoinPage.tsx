@@ -47,9 +47,7 @@ export default function JoinPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-  // QR state
-  const [qrFile, setQrFile] = useState<File | null>(null);
-  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  // live QR preview uses UPI ID from form, no file needed
 
   // Product images: array of (up to 4) files per product
   const [productImageFiles, setProductImageFiles] = useState<(File | null)[][]>([[null, null, null, null]]);
@@ -107,10 +105,6 @@ export default function JoinPage() {
     name: "products",
   });
 
-  const handleQrUpload = (file: File) => {
-    setQrFile(file);
-    setQrPreview(file ? URL.createObjectURL(file) : null);
-  };
 
   const handleProductImageUpload = (productIdx: number, slotIdx: number, file: File | null) => {
     setProductImageFiles(prev => {
@@ -164,16 +158,7 @@ export default function JoinPage() {
         logoUrl = uploadedLogo;
       }
 
-      // 3. Upload QR
-      let qrUrl: string | null = null;
-      if (qrFile) {
-        const path = `${s1.subdomain}/${Date.now()}_qr`;
-        const { url: uploadedQr, error: qrErr } = await uploadImage("Upi-qr", qrFile, path);
-        if (qrErr) toast.error(`QR upload failed: ${qrErr}. You can re-upload from Settings.`);
-        qrUrl = uploadedQr;
-      }
-
-      // 4. Create Shop
+      // 3. Create Shop
       const { data: shopData, error: shopErr } = await supabase.from("shops").insert({
         shop_name: s1.shop_name,
         subdomain: s1.subdomain,
@@ -183,7 +168,6 @@ export default function JoinPage() {
         bio: s1.bio,
         email: s1.email,
         upi_id: s2.upi_id,
-        upi_qr_url: qrUrl,
         logo_url: logoUrl,
         delivery_info: s2.delivery_info,
         status: "pending",
@@ -404,27 +388,28 @@ export default function JoinPage() {
                 <Card>
                   <CardContent className="p-6 space-y-6">
                     <h2 className="text-xl font-semibold">Payment Details</h2>
-                    <div className="grid md:grid-cols-2 gap-8">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">UPI QR Code</label>
-                        <ImageUpload onUpload={handleQrUpload} previewUrl={qrPreview} label="Upload QR Image" dataTestId="upload-qr" />
-                      </div>
-                      <div className="space-y-4">
-                        <FormField control={form2.control} name="upi_id" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>UPI ID (Optional)</FormLabel>
-                            <FormControl><Input placeholder="store@okaxis" {...field} data-testid="input-upi-id" /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}/>
-                        <FormField control={form2.control} name="delivery_info" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>General Delivery Info</FormLabel>
-                            <FormControl><Textarea placeholder="Ships in 3-5 days. No returns." className="resize-none" {...field} data-testid="input-delivery" /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}/>
-                      </div>
+                    <div className="space-y-4">
+                      <FormField control={form2.control} name="upi_id" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Your UPI ID</FormLabel>
+                          <div className="flex items-center gap-2">
+                            <FormControl><Input placeholder="yourname@paytm" {...field} data-testid="input-upi-id" /></FormControl>
+                            {validateUPIId(field.value ?? "") && (
+                              <span className="text-emerald-500 text-xs font-semibold flex items-center gap-1 whitespace-nowrap">✓ Valid</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Buyers will pay directly to this UPI ID</p>
+                          <MiniQRPreview upiId={field.value ?? ""} shopName={form1.watch("shop_name") || "Your Shop"} />
+                          <FormMessage />
+                        </FormItem>
+                      )}/>
+                      <FormField control={form2.control} name="delivery_info" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>General Delivery Info</FormLabel>
+                          <FormControl><Textarea placeholder="Ships in 3-5 days. No returns." className="resize-none" {...field} data-testid="input-delivery" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}/>
                     </div>
                   </CardContent>
                 </Card>
