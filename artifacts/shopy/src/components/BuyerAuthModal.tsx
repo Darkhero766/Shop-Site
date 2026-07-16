@@ -81,6 +81,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
+    await buyerSupabase.auth.signOut({ scope: "others" });
     const name = data.user?.user_metadata?.full_name ?? email.split("@")[0];
     toast.success(`Welcome back, ${name}! 👋`, { duration: 3000 });
     onSuccess();
@@ -169,6 +170,7 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
+    await buyerSupabase.auth.signOut({ scope: "others" });
     await refreshProfile();
     toast.success(`Welcome, ${form.name}! 🎉`, { duration: 3000 });
     onSuccess();
