@@ -1,0 +1,456 @@
+Here's the complete detailed prompt — paste directly into Replit AI:
+
+---
+
+> "Completely replace the current static UPI QR image system with a dynamic UPI payment system. This is a full overhaul of the payment flow. Here is every single detail:
+>
+> **Step 1 — Remove old UPI QR upload**
+> - Remove the UPI QR image upload field from seller signup form Step 2
+> - Remove the UPI QR image upload from seller dashboard Settings tab
+> - Remove upi_qr_url column usage everywhere in the codebase
+> - Keep the UPI ID text field — this is now the only payment detail seller needs to enter
+> - Update the seller settings form to just show:
+>   ```
+>   UPI ID field: name@paytm / name@phonepe / number@upi
+>   Placeholder: yourname@paytm
+>   Helper text: 'Enter the UPI ID linked to your PhonePe, GPay or Paytm account'
+>   A verify button next to it (UI only, just shows green tick when format is valid)
+>   ```
+>
+> **Step 2 — Install required package**
+> Run in terminal:
+> ```bash
+> npm install qrcode
+> npm install @types/qrcode
+> ```
+>
+> **Step 3 — Create a UPI utility file**
+> Create new file `src/lib/upi.ts`:
+> ```typescript
+> import QRCode from 'qrcode'
+>
+> export interface UPIPaymentParams {
+>   upiId: string
+>   shopName: string
+>   amount: number
+>   orderId: string
+>   currency?: string
+> }
+>
+> // Generate UPI deep link string
+> export function generateUPILink(params: UPIPaymentParams): string {
+>   const { upiId, shopName, amount, orderId } = params
+>   const transactionNote = `ORDER-${orderId.slice(0, 8).toUpperCase()}`
+>   
+>   return `upi://pay?` +
+>     `pa=${encodeURIComponent(upiId)}` +
+>     `&pn=${encodeURIComponent(shopName)}` +
+>     `&am=${amount.toFixed(2)}` +
+>     `&tn=${encodeURIComponent(transactionNote)}` +
+>     `&cu=INR`
+> }
+>
+> // Generate QR code as base64 data URL
+> export async function generateUPIQRCode(params: UPIPaymentParams): Promise<string> {
+>   const upiLink = generateUPILink(params)
+>   
+>   const qrDataUrl = await QRCode.toDataURL(upiLink, {
+>     width: 300,
+>     margin: 3,
+>     errorCorrectionLevel: 'M',
+>     color: {
+>       dark: '#1a0533',
+>       light: '#ffffff'
+>     }
+>   })
+>   
+>   return qrDataUrl
+> }
+>
+> // Validate UPI ID format
+> export function validateUPIId(upiId: string): boolean {
+>   const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/
+>   return upiRegex.test(upiId)
+> }
+>
+> // Detect UPI app from UPI ID
+> export function detectUPIApp(upiId: string): {
+>   name: string
+>   deeplink: string
+>   icon: string
+> } | null {
+>   const handle = upiId.split('@')[1]?.toLowerCase()
+>   
+>   const apps: Record<string, { name: string; icon: string }> = {
+>     paytm: { name: 'Paytm', icon: '🟦' },
+>     phonepe: { name: 'PhonePe', icon: '🟣' },
+>     gpay: { name: 'Google Pay', icon: '🔵' },
+>     okaxis: { name: 'Google Pay', icon: '🔵' },
+>     okicici: { name: 'Google Pay', icon: '🔵' },
+>     okhdfcbank: { name: 'Google Pay', icon: '🔵' },
+>     oksbi: { name: 'Google Pay', icon: '🔵' },
+>     ybl: { name: 'PhonePe', icon: '🟣' },
+>     ibl: { name: 'PhonePe', icon: '🟣' },
+>     axl: { name: 'PhonePe', icon: '🟣' },
+>     upi: { name: 'BHIM UPI', icon: '🟩' },
+>     icici: { name: 'iMobile', icon: '🔴' },
+>     sbi: { name: 'YONO SBI', icon: '🔵' },
+>   }
+>   
+>   if (handle && apps[handle]) {
+>     return {
+>       ...apps[handle],
+>       deeplink: `upi://pay`
+>     }
+>   }
+>   return null
+> }
+> ```
+>
+> **Step 4 — Create dynamic UPI payment component**
+> Create new file `src/components/UPIPayment.tsx`:
+> ```typescript
+> import { useEffect, useState } from 'react'
+> import { generateUPIQRCode, generateUPILink, detectUPIApp, validateUPIId } from '@/lib/upi'
+> import { Copy, CheckCircle, Smartphone } from 'lucide-react'
+>
+> interface UPIPaymentProps {
+>   upiId: string
+>   shopName: string
+>   amount: number
+>   orderId: string
+>   onPaymentSubmitted: (utr: string) => void
+> }
+>
+> export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitted }: UPIPaymentProps) {
+>   const [qrUrl, setQrUrl] = useState<string>('')
+>   const [qrLoading, setQrLoading] = useState(true)
+>   const [copied, setCopied] = useState(false)
+>   const [utr, setUtr] = useState('')
+>   const [utrError, setUtrError] = useState('')
+>   const [isMobile, setIsMobile] = useState(false)
+>   
+>   const upiLink = generateUPILink({ upiId, shopName, amount, orderId })
+>   const detectedApp = detectUPIApp(upiId)
+>
+>   useEffect(() => {
+>     setIsMobile(/Android|iPhone|iPad/i.test(navigator.userAgent))
+>     
+>     generateUPIQRCode({ upiId, shopName, amount, orderId })
+>       .then(url => {
+>         setQrUrl(url)
+>         setQrLoading(false)
+>       })
+>   }, [upiId, amount, orderId])
+>
+>   function copyUPIId() {
+>     navigator.clipboard.writeText(upiId)
+>     setCopied(true)
+>     setTimeout(() => setCopied(false), 2000)
+>   }
+>
+>   function validateAndSubmitUTR() {
+>     const cleaned = utr.trim().replace(/\s/g, '')
+>     if (cleaned.length !== 12 || !/^\d{12}$/.test(cleaned)) {
+>       setUtrError('UTR must be exactly 12 digits. Find it in your UPI app payment history.')
+>       return
+>     }
+>     setUtrError('')
+>     onPaymentSubmitted(cleaned)
+>   }
+>
+>   return (
+>     <div className='flex flex-col items-center gap-6 p-4'>
+>       
+>       {/* Amount display */}
+>       <div className='text-center'>
+>         <p className='text-sm text-gray-500 mb-1'>Pay exact amount</p>
+>         <p className='text-5xl font-bold text-purple-700'>₹{amount}</p>
+>         <p className='text-xs text-gray-400 mt-1'>to {shopName}</p>
+>       </div>
+>
+>       {/* QR Code */}
+>       <div className='relative'>
+>         {qrLoading ? (
+>           <div className='w-[260px] h-[260px] bg-gray-100 rounded-2xl animate-pulse flex items-center justify-center'>
+>             <p className='text-gray-400 text-sm'>Generating QR...</p>
+>           </div>
+>         ) : (
+>           <div className='relative'>
+>             <img
+>               src={qrUrl}
+>               alt='UPI Payment QR Code'
+>               className='w-[260px] h-[260px] rounded-2xl border-4 border-purple-100 shadow-lg'
+>             />
+>             {/* ShopGram watermark on QR */}
+>             <div className='absolute bottom-3 left-0 right-0 flex justify-center'>
+>               <span className='bg-white/90 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full'>
+>                 shopgram.in
+>               </span>
+>             </div>
+>           </div>
+>         )}
+>       </div>
+>
+>       {/* Instructions */}
+>       <div className='w-full bg-purple-50 rounded-xl p-4'>
+>         <p className='text-sm font-semibold text-purple-800 mb-2'>How to pay:</p>
+>         <div className='space-y-1.5'>
+>           <p className='text-sm text-purple-700 flex gap-2'>
+>             <span className='font-bold'>1.</span> Open PhonePe, GPay or Paytm
+>           </p>
+>           <p className='text-sm text-purple-700 flex gap-2'>
+>             <span className='font-bold'>2.</span> Scan the QR code above
+>           </p>
+>           <p className='text-sm text-purple-700 flex gap-2'>
+>             <span className='font-bold'>3.</span> Pay exactly ₹{amount} — do not change amount
+>           </p>
+>           <p className='text-sm text-purple-700 flex gap-2'>
+>             <span className='font-bold'>4.</span> Copy the 12-digit UTR from payment receipt
+>           </p>
+>           <p className='text-sm text-purple-700 flex gap-2'>
+>             <span className='font-bold'>5.</span> Paste UTR below and confirm
+>           </p>
+>         </div>
+>       </div>
+>
+>       {/* UPI ID copy section */}
+>       <div className='w-full'>
+>         <p className='text-xs text-gray-500 mb-1 text-center'>Or pay manually to UPI ID</p>
+>         <button
+>           onClick={copyUPIId}
+>           className='w-full flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 hover:bg-purple-50 hover:border-purple-200 transition-all'
+>         >
+>           <span className='font-mono text-sm text-gray-700'>{upiId}</span>
+>           {copied ? (
+>             <span className='flex items-center gap-1 text-green-600 text-xs font-medium'>
+>               <CheckCircle className='w-4 h-4' /> Copied!
+>             </span>
+>           ) : (
+>             <span className='flex items-center gap-1 text-purple-600 text-xs font-medium'>
+>               <Copy className='w-4 h-4' /> Copy
+>             </span>
+>           )}
+>         </button>
+>       </div>
+>
+>       {/* Mobile deep link button */}
+>       {isMobile && (
+>         
+>           href={upiLink}
+>           className='w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-4 rounded-full text-base shadow-lg active:scale-95 transition-transform'
+>         >
+>           <Smartphone className='w-5 h-5' />
+>           {detectedApp ? `Pay with ${detectedApp.icon} ${detectedApp.name}` : 'Open UPI App to Pay'}
+>         </a>
+>       )}
+>
+>       {/* Divider */}
+>       <div className='w-full flex items-center gap-3'>
+>         <div className='flex-1 h-px bg-gray-200' />
+>         <p className='text-xs text-gray-400 whitespace-nowrap'>After paying, enter transaction ID</p>
+>         <div className='flex-1 h-px bg-gray-200' />
+>       </div>
+>
+>       {/* UTR input */}
+>       <div className='w-full space-y-2'>
+>         <label className='text-sm font-medium text-gray-700'>
+>           UTR / Transaction ID
+>           <span className='text-red-500 ml-0.5'>*</span>
+>         </label>
+>         <input
+>           type='number'
+>           inputMode='numeric'
+>           placeholder='Enter 12-digit UTR number'
+>           value={utr}
+>           onChange={e => {
+>             setUtr(e.target.value)
+>             setUtrError('')
+>           }}
+>           maxLength={12}
+>           className='w-full font-mono text-lg border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-purple-500 focus:outline-none tracking-widest text-center'
+>         />
+>         {utrError && (
+>           <p className='text-red-500 text-xs flex items-center gap-1'>
+>             ⚠️ {utrError}
+>           </p>
+>         )}
+>         <p className='text-xs text-gray-400'>
+>           Find UTR in your UPI app → Payment History → tap the payment → copy reference number
+>         </p>
+>
+>         {/* Confirm button */}
+>         <button
+>           onClick={validateAndSubmitUTR}
+>           disabled={utr.length !== 12}
+>           className='w-full bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-4 rounded-full text-base mt-2 transition-all active:scale-95'
+>         >
+>           ✅ Confirm Payment — ₹{amount}
+>         </button>
+>       </div>
+>
+>       {/* Trust note */}
+>       <p className='text-xs text-gray-400 text-center'>
+>         🔒 Your payment goes directly to the seller.
+>         ShopGram never holds your money.
+>       </p>
+>
+>     </div>
+>   )
+> }
+> ```
+>
+> **Step 5 — Replace payment section in CheckoutFlow**
+> In `CheckoutFlow.tsx` on the payment step:
+> - Remove all static QR image display code
+> - Remove the screenshot upload option for now
+> - Import and render the new UPIPayment component:
+> ```typescript
+> import { UPIPayment } from '@/components/UPIPayment'
+>
+> <UPIPayment
+>   upiId={shop.upi_id}
+>   shopName={shop.shop_name}
+>   amount={totalAmount}
+>   orderId={generatedOrderId}
+>   onPaymentSubmitted={(utr) => {
+>     handleUTRSubmit(utr)
+>   }}
+> />
+> ```
+>
+> **Step 6 — UTR submission and duplicate check**
+> In the handleUTRSubmit function:
+> ```typescript
+> async function handleUTRSubmit(utr: string) {
+>   setSubmitting(true)
+>   
+>   // Check if UTR already used
+>   const { data: existing } = await supabase
+>     .from('orders')
+>     .select('id')
+>     .eq('utr', utr)
+>     .maybeSingle()
+>   
+>   if (existing) {
+>     setUtrError('This transaction ID has already been used. Please check your payment app and enter the correct UTR.')
+>     setSubmitting(false)
+>     return
+>   }
+>   
+>   // Save order with UTR
+>   const { error } = await supabase
+>     .from('orders')
+>     .insert({
+>       shop_id: shop.id,
+>       product_id: selectedProduct.id,
+>       buyer_name: buyerDetails.name,
+>       buyer_phone: buyerDetails.phone,
+>       address: buyerDetails.address,
+>       city: buyerDetails.city,
+>       state: buyerDetails.state,
+>       pincode: buyerDetails.pincode,
+>       amount: totalAmount,
+>       utr: utr,
+>       status: 'pending',
+>       created_at: new Date().toISOString()
+>     })
+>   
+>   if (error) {
+>     setSubmitError('Something went wrong. Please try again.')
+>     setSubmitting(false)
+>     return
+>   }
+>   
+>   // Go to success page
+>   setStep('success')
+>   setSubmitting(false)
+> }
+> ```
+>
+> **Step 7 — Update seller dashboard**
+> In seller Settings tab UPI section show:
+> ```
+> UPI ID: [text input]
+> 
+> Preview card below input showing:
+> 'Your buyers will see this payment QR'
+> [live generated mini QR code preview]
+> [UPI ID text]
+> 
+> This updates live as seller types their UPI ID
+> ```
+>
+> **Step 8 — Add UPI ID to seller signup**
+> In signup Step 2 replace QR upload with:
+> ```
+> Label: Your UPI ID
+> Input: yourname@paytm
+> Helper: Buyers will pay directly to this UPI ID
+> Validation: Must contain @ symbol and valid handle
+> Live preview: Show a small generated QR below the input
+>              that updates as they type — wow moment
+>              that shows them exactly what buyers will see
+> ```
+>
+> **Step 9 — How UTR looks in seller dashboard orders**
+> In the orders table UTR column:
+> ```typescript
+> // Show UTR as a styled badge
+> <span className='font-mono text-xs bg-gray-100 px-2 py-1 rounded-lg tracking-wider'>
+>   {order.utr}
+> </span>
+>
+> // Add a verify hint below
+> <p className='text-xs text-gray-400 mt-0.5'>
+>   Verify in your UPI app payment history
+> </p>
+> ```
+>
+> **Step 10 — Mobile tap to pay detection**
+> On mobile devices the UPI deep link should detect which app to open. Add these app-specific links as fallback buttons if the generic upi:// link fails:
+> ```typescript
+> const appLinks = [
+>   {
+>     name: 'PhonePe',
+>     icon: '🟣',
+>     url: `phonepe://pay?pa=${upiId}&pn=${shopName}&am=${amount}&tn=${orderId}`
+>   },
+>   {
+>     name: 'GPay', 
+>     icon: '🔵',
+>     url: `tez://upi/pay?pa=${upiId}&pn=${shopName}&am=${amount}&tn=${orderId}`
+>   },
+>   {
+>     name: 'Paytm',
+>     icon: '🟦', 
+>     url: `paytmmp://pay?pa=${upiId}&pn=${shopName}&am=${amount}&tn=${orderId}`
+>   }
+> ]
+>
+> // Show as small pill buttons below main pay button on mobile
+> // Only show on mobile (check userAgent)
+> ```
+>
+> **Step 11 — Remove upi_qr_url from database**
+> Run this in Supabase SQL Editor:
+> ```sql
+> -- Make column nullable first so existing data not lost
+> alter table shops alter column upi_qr_url drop not null;
+>
+> -- Add upi_id column if not already there
+> alter table shops add column if not exists upi_id text;
+> ```
+> Do NOT delete the column yet — just stop using it. Keep for backward compatibility.
+>
+> After all changes test this complete flow:
+> 1. Seller sets UPI ID in settings — QR preview shows live
+> 2. Buyer visits shop → clicks product → Buy Now
+> 3. Fills address form
+> 4. Payment page shows dynamic QR with exact amount
+> 5. On mobile: tap to open UPI app, amount pre-filled
+> 6. Buyer pays, gets UTR from app
+> 7. Enters 12 digit UTR in field
+> 8. Submits — order saved in Supabase
+> 9. Seller sees order in dashboard with UTR
+> 10. Seller verifies UTR in their own UPI app and confirms"

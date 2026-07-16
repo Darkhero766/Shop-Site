@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MiniQRPreview } from "@/components/UPIPayment";
 import { supabase, Shop, Product, Review } from "@/lib/supabase";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductDrawer } from "@/components/ProductDrawer";
@@ -542,8 +543,8 @@ export default function ShopPage({ slug }: { slug: string }) {
             <h3 className="text-lg font-bold mb-1 text-center">Pay via UPI</h3>
             <p className="text-xs text-muted-foreground text-center mb-5">Scan QR or copy UPI ID to pay {shop.shop_name}</p>
             <div className="flex flex-col items-center gap-4">
-              {shop.upi_qr_url && (
-                <img src={shop.upi_qr_url} alt="UPI QR" className="w-48 h-48 object-contain rounded-2xl border-2 border-muted p-2 bg-white" />
+              {shop.upi_id && (
+                <MiniQRPreview upiId={shop.upi_id} shopName={shop.shop_name} />
               )}
               {shop.upi_id && (
                 <button

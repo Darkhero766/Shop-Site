@@ -1062,13 +1062,6 @@ export default function DashboardPage() {
                       <Input value={settingsForm.delivery_info} onChange={e => setSettingsForm(p => ({ ...p, delivery_info: e.target.value }))}
                         placeholder="Delivery in 5–7 days across India" data-testid="settings-delivery" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-3">UPI QR Code</label>
-                      {settingsQrPreview && (
-                        <img src={settingsQrPreview} alt="UPI QR" className="w-36 h-36 object-contain rounded-xl border mb-3" />
-                      )}
-                      <ImageUpload onFileSelect={file => { setSettingsQrFile(file); setSettingsQrPreview(file ? URL.createObjectURL(file) : shop.upi_qr_url); }} label="Upload new QR code" />
-                    </div>
                     <Button onClick={saveSettings} disabled={isSavingSettings} className="rounded-full w-full md:w-auto px-8" data-testid="btn-save-settings">
                       {isSavingSettings ? "Saving…" : "Save Settings"}
                     </Button>
