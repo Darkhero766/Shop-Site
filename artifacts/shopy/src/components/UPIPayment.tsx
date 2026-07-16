@@ -56,7 +56,7 @@ export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitte
 
   const upiLink = generateUPILink({ upiId, shopName, amount, orderId });
   const detectedApp = detectUPIApp(upiId);
-  const utrValid = /^\d{12}$/.test(utr.trim());
+  const utrValid = /^[A-Za-z0-9]{8,22}$/.test(utr.trim());
 
   useEffect(() => {
     setIsMobile(/Android|iPhone|iPad/i.test(navigator.userAgent));
@@ -74,8 +74,8 @@ export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitte
 
   function handleSubmit() {
     const cleaned = utr.trim().replace(/\s/g, "");
-    if (!/^\d{12}$/.test(cleaned)) {
-      setUtrError("UTR must be exactly 12 digits. Find it in your UPI app payment history.");
+    if (!/^[A-Za-z0-9]{8,22}$/.test(cleaned)) {
+      setUtrError("Enter a valid UTR / Transaction ID (8–22 alphanumeric characters). Find it in your UPI app payment history.");
       return;
     }
     setUtrError("");
@@ -128,7 +128,7 @@ export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitte
             "Open PhonePe, GPay or Paytm",
             "Scan the QR code above",
             `Pay exactly ₹${amount} — do not change the amount`,
-            "Copy the 12-digit UTR from your payment receipt",
+            "Copy the UTR / Transaction ID from your payment receipt",
             "Paste UTR below and tap confirm",
           ].map((step, i) => (
             <li key={i} className="text-sm text-primary/80 flex gap-2">
@@ -202,16 +202,17 @@ export function UPIPayment({ upiId, shopName, amount, orderId, onPaymentSubmitte
           UTR / Transaction ID <span className="text-destructive">*</span>
         </label>
         <input
-          type="number"
-          inputMode="numeric"
-          placeholder="Enter 12-digit UTR number"
+          type="text"
+          inputMode="text"
+          autoCapitalize="characters"
+          placeholder="e.g. 302456789012 or AXI34567890"
           value={utr}
-          onChange={e => { setUtr(e.target.value); setUtrError(""); }}
-          maxLength={12}
+          onChange={e => { setUtr(e.target.value.replace(/\s/g, "").toUpperCase()); setUtrError(""); }}
+          maxLength={22}
           className="w-full font-mono text-lg border-2 border-border rounded-xl px-4 py-3 focus:border-primary focus:outline-none tracking-widest text-center bg-background"
         />
-        <p className={`text-xs ${utr.length === 12 ? "text-emerald-500" : "text-muted-foreground"}`}>
-          {utr.length}/12 digits
+        <p className={`text-xs ${utrValid ? "text-emerald-500" : "text-muted-foreground"}`}>
+          {utr.trim().length} / 8–22 chars
         </p>
         {utrError && <p className="text-destructive text-xs flex items-center gap-1">⚠️ {utrError}</p>}
         <p className="text-xs text-muted-foreground">

@@ -489,7 +489,7 @@ export default function ShopPage({ slug }: { slug: string }) {
               {[
                 { title: "Select a product and tap Buy Now", desc: "Browse the catalog, choose your size and quantity, then hit Buy Now." },
                 { title: "Scan QR code & complete payment", desc: "Scan the UPI QR shown during checkout and pay the exact amount." },
-                { title: "Upload payment proof or enter UTR", desc: "Take a screenshot of the payment or enter the 12-digit UTR number to confirm your order." },
+                { title: "Enter your UTR / Transaction ID", desc: "After paying, copy the UTR or Transaction ID from PhonePe, GPay, or Paytm and paste it to confirm your order." },
               ].map((step, i) => (
                 <li key={i} className="flex gap-4 items-start">
                   <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">{i + 1}</span>

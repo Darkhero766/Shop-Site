@@ -14,7 +14,7 @@ const formSchema = z.object({
   buyer_name: z.string().min(2, "Name must be at least 2 characters"),
   buyer_phone: z.string().regex(/^\+?91?[6789]\d{9}$/, "Valid Indian phone number required"),
   amount: z.coerce.number().min(1, "Amount must be at least 1"),
-  utr: z.string().regex(/^\d{12}$/, "UTR must be exactly 12 digits"),
+  utr: z.string().regex(/^[A-Za-z0-9]{8,22}$/, "Enter a valid UTR / Transaction ID (8–22 characters)"),
   product_id: z.string().min(1, "Select a product"),
 });
 
