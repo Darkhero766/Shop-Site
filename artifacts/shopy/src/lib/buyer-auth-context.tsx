@@ -80,9 +80,8 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
         setBuyerProfile(null);
         setBuyerLoading(false);
         if (hadSession.current && !intentionalSignOut.current) {
-          toast.info("Your session expired. Please log in again.", {
-            duration: 6000,
-            action: { label: "Login", onClick: () => {} },
+          toast.info("Session expired — tap the menu ☰ to log back in.", {
+            duration: 8000,
           });
         }
         hadSession.current = false;

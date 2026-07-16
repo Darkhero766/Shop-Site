@@ -348,15 +348,45 @@ export function BuyerAuthModal({ open, onClose, defaultTab = "login" }: {
   );
 }
 
-export function BuyerAccountButton({ onOpenAuth }: { onOpenAuth: (tab?: Tab) => void }) {
+export function BuyerAccountButton({
+  onOpenAuth,
+  variant = "icon",
+}: {
+  onOpenAuth: (tab?: Tab) => void;
+  variant?: "icon" | "drawer";
+}) {
   const { buyerSession, buyerProfile, buyerLoading, signOut } = useBuyerAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
-  if (buyerLoading) return null;
+  if (buyerLoading) {
+    if (variant === "drawer") {
+      return <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />;
+    }
+    return null;
+  }
 
   if (!buyerSession) {
+    if (variant === "drawer") {
+      return (
+        <div className="space-y-2">
+          <button
+            onClick={() => onOpenAuth("login")}
+            className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            <User className="w-4 h-4" />
+            Login to my account
+          </button>
+          <button
+            onClick={() => onOpenAuth("signup")}
+            className="w-full flex items-center justify-center gap-2 border border-purple-200 text-purple-600 hover:bg-purple-50 font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            Create account
+          </button>
+        </div>
+      );
+    }
     return (
       <button
         onClick={() => onOpenAuth("login")}

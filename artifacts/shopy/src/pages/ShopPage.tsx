@@ -331,11 +331,14 @@ export default function ShopPage({ slug }: { slug: string }) {
               {/* Buyer account section */}
               <div className="px-5 py-4 border-b">
                 <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-medium">Your Account</p>
-                <BuyerAccountButton onOpenAuth={(tab = "login") => {
-                  setDrawerOpen(false);
-                  setAuthModalTab(tab);
-                  setAuthModalOpen(true);
-                }} />
+                <BuyerAccountButton
+                  variant="drawer"
+                  onOpenAuth={(tab = "login") => {
+                    setDrawerOpen(false);
+                    setAuthModalTab(tab);
+                    setAuthModalOpen(true);
+                  }}
+                />
               </div>
 
               {/* Links */}
