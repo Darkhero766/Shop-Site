@@ -123,7 +123,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-function SignupForm({ onSuccess }: { onSuccess: () => void }) {
+function SignupForm({ onSuccess, onSwitchTab }: { onSuccess: () => void; onSwitchTab: (tab: Tab) => void }) {
   const { refreshProfile } = useBuyerAuth();
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Partial<typeof form & { general: string }>>({});
@@ -151,7 +151,24 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
       options: { data: { full_name: form.name } },
     });
 
-    if (error) { setLoading(false); setErrors({ general: error.message }); return; }
+    if (error) {
+      setLoading(false);
+      const msg = error.message.toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("email taken")) {
+        setErrors({ general: "already_exists" });
+      } else {
+        setErrors({ general: error.message });
+      }
+      return;
+    }
+
+    // Supabase quirk: when email confirmation is on + email already exists,
+    // it returns a user with empty identities instead of an error
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setLoading(false);
+      setErrors({ general: "already_exists" });
+      return;
+    }
 
     if (data.user) {
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -225,7 +242,22 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
         <label className="text-sm font-medium mb-1 block">Confirm Password *</label>
         <PasswordInput value={form.confirm} onChange={set("confirm")} placeholder="Repeat password" error={errors.confirm} />
       </div>
-      {errors.general && <p className="text-xs text-red-500">{errors.general}</p>}
+      {errors.general && (
+        errors.general === "already_exists" ? (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            This email is already registered.{" "}
+            <button
+              type="button"
+              onClick={() => onSwitchTab("login")}
+              className="font-semibold underline underline-offset-2 hover:text-amber-900"
+            >
+              Log in instead →
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-red-500">{errors.general}</p>
+        )
+      )}
       <Button type="submit" disabled={loading} className="w-full rounded-full bg-purple-600 hover:bg-purple-700 h-11">
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
       </Button>
@@ -341,7 +373,7 @@ export function BuyerAuthModal({ open, onClose, defaultTab = "login" }: {
         {tab === "login" ? (
           <LoginForm onSuccess={onClose} />
         ) : (
-          <SignupForm onSuccess={onClose} />
+          <SignupForm onSuccess={onClose} onSwitchTab={setTab} />
         )}
       </div>
     </AdaptiveSheet>
