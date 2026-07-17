@@ -39,13 +39,18 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   const hadSession = useRef(false);
 
   async function fetchProfile(userId: string) {
-    const { data, error } = await buyerSupabase
-      .from("buyers")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
-    setBuyerProfile(data ?? null);
+    try {
+      const { data, error } = await buyerSupabase
+        .from("buyers")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
+      setBuyerProfile(data ?? null);
+    } catch (err) {
+      console.error("[BuyerAuth] fetchProfile threw:", err);
+      setBuyerProfile(null);
+    }
   }
 
   async function refreshProfile() {
@@ -60,22 +65,34 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let settled = false;
+
     buyerSupabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (settled) return;
+      settled = true;
       setBuyerSession(session);
       if (session?.user.id) {
         hadSession.current = true;
         await fetchProfile(session.user.id);
       }
       setBuyerLoading(false);
+    }).catch((err) => {
+      console.error("[BuyerAuth] getSession error:", err);
+      if (!settled) {
+        settled = true;
+        setBuyerLoading(false);
+      }
     });
 
     const { data: { subscription } } = buyerSupabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (!settled) { settled = true; }
         hadSession.current = true;
         setBuyerSession(session);
         if (session?.user.id) await fetchProfile(session.user.id);
         setBuyerLoading(false);
       } else if (event === "SIGNED_OUT") {
+        if (!settled) { settled = true; }
         setBuyerSession(null);
         setBuyerProfile(null);
         setBuyerLoading(false);
@@ -86,6 +103,15 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
         }
         hadSession.current = false;
         intentionalSignOut.current = false;
+      } else if (event === "INITIAL_SESSION") {
+        if (settled) return;
+        settled = true;
+        setBuyerSession(session);
+        if (session?.user.id) {
+          hadSession.current = true;
+          await fetchProfile(session.user.id);
+        }
+        setBuyerLoading(false);
       } else {
         setBuyerSession(session);
         if (session?.user.id) {
@@ -93,11 +119,25 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
         } else {
           setBuyerProfile(null);
         }
-        setBuyerLoading(false);
+        if (!settled) {
+          settled = true;
+          setBuyerLoading(false);
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    const safetyTimer = setTimeout(() => {
+      if (!settled) {
+        console.warn("[BuyerAuth] loading timed out — forcing done");
+        settled = true;
+        setBuyerLoading(false);
+      }
+    }, 4000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   return (
