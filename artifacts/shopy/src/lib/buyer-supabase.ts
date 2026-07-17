@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 /**
  * Separate Supabase client for BUYER auth only.
- * Uses a different storageKey so buyer sessions never overwrite seller sessions.
+ * Uses sessionStorage so buyer sessions never interfere with seller sessions in localStorage.
  */
 export const buyerSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -13,5 +13,10 @@ export const buyerSupabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: false,
     storageKey: "shopgram-buyer-auth",
+    storage: {
+      getItem: (key) => sessionStorage.getItem(key),
+      setItem: (key, value) => sessionStorage.setItem(key, value),
+      removeItem: (key) => sessionStorage.removeItem(key),
+    },
   },
 });

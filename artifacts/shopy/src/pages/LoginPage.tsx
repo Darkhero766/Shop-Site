@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,10 +28,12 @@ export default function LoginPage() {
   const [view, setView] = useState<"login" | "forgot" | "sent">("login");
   const { session, loading } = useAuth();
 
-  if (!loading && session) {
-    setLocation("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && session) setLocation("/dashboard");
+  }, [loading, session, setLocation]);
+
+  if (loading) return null;
+  if (session) return null;
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),

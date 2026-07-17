@@ -1,0 +1,73 @@
+Fix 1 — shop_visits table missing
+The dashboard crashes because shop_visits table doesn't exist in Supabase. I've created it manually. But wrap the shop_visits queries in the DashboardPage loadData function in a try-catch so they never crash the rest of the dashboard if the table has issues:
+typescript// In loadData(), separate shop_visits from the main Promise.all
+const [prodRes, orderRes, revRes] = await Promise.all([
+  supabase.from('products').select('*').eq('shop_id', shopData.id).order('created_at', { ascending: false }),
+  supabase.from('orders').select('*, products(name)').eq('shop_id', shopData.id).order('created_at', { ascending: false }),
+  supabase.from('reviews').select('*').eq('shop_id', shopData.id).order('created_at', { ascending: false }),
+]);
+
+// Separate try-catch for visit stats so they never break main data
+try {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const [totalVisitRes, todayVisitRes] = await Promise.all([
+    supabase.from('shop_visits').select('id', { count: 'exact', head: true }).eq('shop_id', shopData.id),
+    supabase.from('shop_visits').select('id', { count: 'exact', head: true }).eq('shop_id', shopData.id).gte('visited_at', todayStart.toISOString()),
+  ]);
+  setVisitCount(totalVisitRes.count ?? 0);
+  setTodayVisitCount(todayVisitRes.count ?? 0);
+} catch {
+  setVisitCount(0);
+  setTodayVisitCount(0);
+}
+Fix 2 — Two Supabase clients corrupting each other's sessions on mobile
+In buyer-supabase.ts, add storage option pointing to sessionStorage instead of localStorage so buyer auth never interferes with seller auth:
+typescriptexport const buyerSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storageKey: 'shopgram-buyer-auth',
+    storage: {
+      getItem: (key) => sessionStorage.getItem(key),
+      setItem: (key, value) => sessionStorage.setItem(key, value),
+      removeItem: (key) => sessionStorage.removeItem(key),
+    },
+  },
+});
+This means buyer sessions live in sessionStorage (cleared when tab closes) while seller sessions live in localStorage (persistent). They can NEVER interfere with each other.
+Fix 3 — LoginPage redirect during render causing mobile session loss
+In LoginPage.tsx, move the session redirect into a useEffect instead of running during render:
+typescript// Remove this:
+if (!loading && session) {
+  setLocation('/dashboard');
+  return null;
+}
+
+// Replace with this at the top of the component:
+useEffect(() => {
+  if (!loading && session) {
+    setLocation('/dashboard');
+  }
+}, [loading, session, setLocation]);
+
+// Add early return for loading state:
+if (loading) return null;
+if (session) return null;
+Fix 4 — Buyers table RLS blocking mobile signups
+Run this in Supabase SQL Editor to fix the insert policy:
+sqldrop policy if exists 'Buyers can insert own profile' on buyers;
+
+create policy 'Buyers can insert own profile'
+on buyers for insert
+with check (true);
+Also in the buyer signup function, add a retry mechanism:
+typescript// After supabase.auth.signUp() succeeds, wait 500ms before inserting buyer profile
+// This gives auth time to propagate on mobile
+await new Promise(resolve => setTimeout(resolve, 500));
+await buyerSupabase.from('buyers').insert({
+  id: user.id,
+  full_name: values.fullName,
+  email: values.email,
+  phone: values.phone,
+})

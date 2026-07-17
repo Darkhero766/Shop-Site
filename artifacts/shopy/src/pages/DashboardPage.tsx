@@ -110,18 +110,26 @@ export default function DashboardPage() {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        const [prodRes, orderRes, revRes, totalVisitRes, todayVisitRes] = await Promise.all([
+        const [prodRes, orderRes, revRes] = await Promise.all([
           supabase.from("products").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
           supabase.from("orders").select("*, products(name)").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
           supabase.from("reviews").select("*").eq("shop_id", shopData.id).order("created_at", { ascending: false }),
-          supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id),
-          supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id).gte("visited_at", todayStart.toISOString()),
         ]);
         if (prodRes.data) setProducts(prodRes.data);
         if (orderRes.data) setOrders(orderRes.data as Order[]);
         if (revRes.data) setReviews(revRes.data);
-        setVisitCount(totalVisitRes.count ?? 0);
-        setTodayVisitCount(todayVisitRes.count ?? 0);
+
+        try {
+          const [totalVisitRes, todayVisitRes] = await Promise.all([
+            supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id),
+            supabase.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shopData.id).gte("visited_at", todayStart.toISOString()),
+          ]);
+          setVisitCount(totalVisitRes.count ?? 0);
+          setTodayVisitCount(todayVisitRes.count ?? 0);
+        } catch {
+          setVisitCount(0);
+          setTodayVisitCount(0);
+        }
 
         // Subscribe to real-time new visits
         realtimeChannel = supabase

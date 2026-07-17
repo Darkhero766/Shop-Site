@@ -154,12 +154,14 @@ function SignupForm({ onSuccess }: { onSuccess: () => void }) {
     if (error) { setLoading(false); setErrors({ general: error.message }); return; }
 
     if (data.user) {
-      await buyerSupabase.from("buyers").upsert({
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error: insertErr } = await buyerSupabase.from("buyers").upsert({
         id: data.user.id,
         full_name: form.name,
         phone: form.phone,
         email: form.email,
       });
+      if (insertErr) console.error("[BuyerAuth] profile insert error:", insertErr.message);
     }
 
     setLoading(false);
