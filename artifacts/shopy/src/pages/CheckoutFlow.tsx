@@ -259,7 +259,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
 
     if (mode === "new" && saveForNext && buyerSession) {
       setIsSaving(true);
-      await supabase.from("buyers").upsert({
+      const { error: upsertErr } = await buyerSupabase.from("buyers").upsert({
         id: buyerSession.user.id,
         full_name: form.name,
         phone: form.phone,
@@ -268,6 +268,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
         default_pincode: form.pincode,
         default_state: form.state,
       }, { onConflict: "id" });
+      if (upsertErr) console.error("[Checkout] buyer upsert failed:", upsertErr.message);
       setIsSaving(false);
     }
 
