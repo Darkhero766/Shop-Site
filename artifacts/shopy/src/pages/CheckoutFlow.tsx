@@ -205,7 +205,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
   onBack: () => void;
 }) {
   const { buyerProfile, buyerSession, buyerLoading } = useBuyerAuth();
-  const hasSavedAddress = !buyerLoading && !!(buyerProfile?.default_address && buyerProfile?.full_name);
+  const hasSavedAddress = !buyerLoading && !!buyerProfile?.default_address;
 
   const savedData: BuyerData = {
     name: buyerProfile?.full_name ?? "",
@@ -228,7 +228,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
 
   // Switch to saved mode once profile finishes loading (if user hasn't manually chosen)
   useEffect(() => {
-    if (!buyerLoading && !modeChosen && buyerProfile?.default_address && buyerProfile?.full_name) {
+    if (!buyerLoading && !modeChosen && buyerProfile?.default_address) {
       setMode("saved");
     }
   }, [buyerLoading, buyerProfile, modeChosen]);
