@@ -12,6 +12,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MiniQRPreview } from "@/components/UPIPayment";
+import { validateUPIId } from "@/lib/upi";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 

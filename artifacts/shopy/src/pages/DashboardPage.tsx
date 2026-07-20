@@ -993,7 +993,7 @@ export default function DashboardPage() {
                           <img src={settingsLogoPreview} alt="Logo" className="w-16 h-16 rounded-full object-cover border mb-2" />
                         )}
                         <ImageUpload
-                          onFileSelect={file => {
+                          onUpload={file => {
                             setSettingsLogoFile(file);
                             setSettingsLogoPreview(file ? URL.createObjectURL(file) : (shop.logo_url ?? null));
                           }}
