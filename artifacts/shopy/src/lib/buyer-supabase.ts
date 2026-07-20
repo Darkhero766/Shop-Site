@@ -12,7 +12,7 @@ export const buyerSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: false,
     storageKey: "shopgram-buyer-auth",
   },
 });

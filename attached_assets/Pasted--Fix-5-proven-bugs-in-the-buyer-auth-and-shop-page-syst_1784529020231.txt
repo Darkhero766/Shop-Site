@@ -1,0 +1,118 @@
+"Fix 5 proven bugs in the buyer auth and shop page system. Here are exact file changes needed:
+Fix 1 — buyer-supabase.ts: change detectSessionInUrl to false
+typescript
+export const buyerSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storageKey: 'shopgram-buyer-auth',
+  },
+});
+Fix 2 — buyer-auth-context.tsx: fix race condition with settled flag
+Replace the entire useEffect with this cleaner version that has no race condition:
+typescript
+useEffect(() => {
+  let mounted = true;
+
+  async function init() {
+    try {
+      const { data: { session } } = await buyerSupabase.auth.getSession();
+      if (!mounted) return;
+      setBuyerSession(session);
+      if (session?.user?.id) {
+        hadSession.current = true;
+        await fetchProfile(session.user.id);
+      }
+    } catch (err) {
+      console.error('[BuyerAuth] init error:', err);
+    } finally {
+      if (mounted) setBuyerLoading(false);
+    }
+  }
+
+  init();
+
+  const { data: { subscription } } = buyerSupabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (!mounted) return;
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        hadSession.current = true;
+        setBuyerSession(session);
+        if (session?.user?.id) await fetchProfile(session.user.id);
+        setBuyerLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setBuyerSession(null);
+        setBuyerProfile(null);
+        setBuyerLoading(false);
+        if (hadSession.current && !intentionalSignOut.current) {
+          toast.info('Session expired — tap menu to log back in.', { duration: 6000 });
+        }
+        hadSession.current = false;
+        intentionalSignOut.current = false;
+      }
+    }
+  );
+
+  const safetyTimer = setTimeout(() => {
+    if (mounted) setBuyerLoading(false);
+  }, 3000);
+
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+    clearTimeout(safetyTimer);
+  };
+}, []);
+Fix 3 — ShopPage.tsx: remove backdrop-blur from overlay
+Find the drawer overlay div and remove backdrop-blur-sm:
+typescript
+// Change from:
+className='fixed inset-0 z-40 bg-black/40 backdrop-blur-sm'
+
+// Change to:
+className='fixed inset-0 z-40 bg-black/50'
+Fix 4 — Supabase dashboard: turn off email confirmation
+Go to Supabase → Authentication → Providers → Email → turn OFF 'Confirm email' toggle → Save.
+This makes buyer signup instant — no email confirmation needed.
+Also in SignupForm after signUp succeeds, remove the confirmationSent check and always proceed directly:
+typescript
+// After signUp() succeeds, always create profile and log in:
+if (data.user) {
+  await buyerSupabase.from('buyers').upsert({
+    id: data.user.id,
+    full_name: form.name,
+    phone: form.phone,
+    email: form.email,
+  }, { onConflict: 'id' });
+  await refreshProfile();
+  toast.success('Welcome ' + form.name + '! 🎉', { duration: 3000 });
+  onSuccess();
+}
+Fix 5 — ShopPage.tsx: allow guest checkout, make login optional
+In the onOrder handler inside ProductDrawer, remove the buyerSession check that forces login. Let everyone buy without account:
+typescript
+onOrder={(size, qty) => {
+  if (!selectedProduct) return;
+  // Remove the buyerSession check — allow guest checkout
+  const params = new URLSearchParams({ qty: String(qty) });
+  if (size) params.set('size', size);
+  setLocation(`/s/${slug}/product/${selectedProduct.id}?${params.toString()}`);
+}}
+Instead show a subtle banner inside the checkout flow encouraging (not forcing) login:
+In CheckoutFlow.tsx Step 1 (details form), add a small dismissible banner at top:
+typescript
+{!buyerSession && (
+  <div className='flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 mb-4'>
+    <span className='text-sm text-purple-700'>
+      <strong>Tip:</strong> Login to auto-fill your address and track orders
+    </span>
+    <button
+      onClick={() => setAuthModalOpen(true)}
+      className='ml-auto text-xs font-semibold text-purple-600 underline whitespace-nowrap'
+    >
+      Login
+    </button>
+  </div>
+)}
+```"

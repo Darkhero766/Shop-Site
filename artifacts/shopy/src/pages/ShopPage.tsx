@@ -26,7 +26,6 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
-  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const [logoError, setLogoError] = useState(false);
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -34,15 +33,6 @@ export default function ShopPage({ slug }: { slug: string }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { buyerSession } = useBuyerAuth();
-
-  useEffect(() => {
-    if (buyerSession && pendingProduct) {
-      setSelectedProduct(pendingProduct);
-      setPendingProduct(null);
-      setAuthModalOpen(false);
-    }
-  }, [buyerSession, pendingProduct]);
 
   useEffect(() => {
     if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 120);
@@ -263,7 +253,7 @@ export default function ShopPage({ slug }: { slug: string }) {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-black/50"
               onClick={() => setDrawerOpen(false)}
             />
             {/* Drawer panel */}
@@ -574,13 +564,6 @@ export default function ShopPage({ slug }: { slug: string }) {
         onProductSelect={(p) => setSelectedProduct(p)}
         onOrder={(size, qty) => {
           if (!selectedProduct) return;
-          if (!buyerSession) {
-            setPendingProduct(selectedProduct);
-            setSelectedProduct(null);
-            setAuthModalTab("login");
-            setAuthModalOpen(true);
-            return;
-          }
           const params = new URLSearchParams({ qty: String(qty) });
           if (size) params.set("size", size);
           setLocation(`/s/${slug}/product/${selectedProduct.id}?${params.toString()}`);

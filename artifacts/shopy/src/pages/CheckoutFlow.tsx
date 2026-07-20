@@ -206,6 +206,7 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
 }) {
   const { buyerProfile, buyerSession, buyerLoading } = useBuyerAuth();
   const hasSavedAddress = !buyerLoading && !!buyerProfile?.default_address;
+  const [authOpen, setAuthOpen] = useState(false);
 
   const savedData: BuyerData = {
     name: buyerProfile?.full_name ?? "",
@@ -288,6 +289,19 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
       <ProgressBar current={2} />
 
       <div className="flex-1 px-4 py-6 pb-28 space-y-5 max-w-lg mx-auto w-full">
+        {!buyerSession && (
+          <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3">
+            <span className="text-sm text-purple-700">
+              <strong>Tip:</strong> Login to auto-fill your address and track orders
+            </span>
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="ml-auto text-xs font-semibold text-purple-600 underline whitespace-nowrap"
+            >
+              Login
+            </button>
+          </div>
+        )}
         {/* Order summary */}
         <div className="bg-muted/30 rounded-2xl p-4 flex gap-3 items-center">
           {product.images?.[0] && (
@@ -459,6 +473,8 @@ function DetailsStep({ product, cart, initialData, onProceed, onBack }: {
           </Button>
         </div>
       </div>
+
+      <BuyerAuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab="login" />
     </div>
   );
 }

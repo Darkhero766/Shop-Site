@@ -84,76 +84,53 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    let settled = false;
+    let mounted = true;
 
-    buyerSupabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (settled) return;
-      settled = true;
-      setBuyerSession(session);
-      if (session?.user.id) {
-        hadSession.current = true;
-        await fetchProfile(session.user.id);
-      }
-      setBuyerLoading(false);
-    }).catch((err) => {
-      console.error("[BuyerAuth] getSession error:", err);
-      if (!settled) {
-        settled = true;
-        setBuyerLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = buyerSupabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        if (!settled) { settled = true; }
-        hadSession.current = true;
+    async function init() {
+      try {
+        const { data: { session } } = await buyerSupabase.auth.getSession();
+        if (!mounted) return;
         setBuyerSession(session);
-        if (session?.user.id) await fetchProfile(session.user.id);
-        setBuyerLoading(false);
-      } else if (event === "SIGNED_OUT") {
-        if (!settled) { settled = true; }
-        setBuyerSession(null);
-        setBuyerProfile(null);
-        setBuyerLoading(false);
-        if (hadSession.current && !intentionalSignOut.current) {
-          toast.info("Session expired — tap the menu ☰ to log back in.", {
-            duration: 8000,
-          });
-        }
-        hadSession.current = false;
-        intentionalSignOut.current = false;
-      } else if (event === "INITIAL_SESSION") {
-        if (settled) return;
-        settled = true;
-        setBuyerSession(session);
-        if (session?.user.id) {
+        if (session?.user?.id) {
           hadSession.current = true;
           await fetchProfile(session.user.id);
         }
-        setBuyerLoading(false);
-      } else {
-        setBuyerSession(session);
-        if (session?.user.id) {
-          await fetchProfile(session.user.id);
-        } else {
-          setBuyerProfile(null);
-        }
-        if (!settled) {
-          settled = true;
+      } catch (err) {
+        console.error("[BuyerAuth] init error:", err);
+      } finally {
+        if (mounted) setBuyerLoading(false);
+      }
+    }
+
+    init();
+
+    const { data: { subscription } } = buyerSupabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          hadSession.current = true;
+          setBuyerSession(session);
+          if (session?.user?.id) await fetchProfile(session.user.id);
           setBuyerLoading(false);
+        } else if (event === "SIGNED_OUT") {
+          setBuyerSession(null);
+          setBuyerProfile(null);
+          setBuyerLoading(false);
+          if (hadSession.current && !intentionalSignOut.current) {
+            toast.info("Session expired — tap menu to log back in.", { duration: 6000 });
+          }
+          hadSession.current = false;
+          intentionalSignOut.current = false;
         }
       }
-    });
+    );
 
     const safetyTimer = setTimeout(() => {
-      if (!settled) {
-        console.warn("[BuyerAuth] loading timed out — forcing done");
-        settled = true;
-        setBuyerLoading(false);
-      }
-    }, 4000);
+      if (mounted) setBuyerLoading(false);
+    }, 3000);
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       clearTimeout(safetyTimer);
     };
