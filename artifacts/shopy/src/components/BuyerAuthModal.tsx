@@ -291,7 +291,7 @@ function AdaptiveSheet({
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/50 z-[200]"
             onClick={onClose}
           />
           {isMobile ? (
@@ -300,7 +300,7 @@ function AdaptiveSheet({
               variants={mobileVariants}
               initial="hidden" animate="visible" exit="exit"
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-[210] bg-white rounded-t-[24px] shadow-2xl"
               style={{ maxWidth: 480, width: "100%", marginLeft: "auto", marginRight: "auto", left: 0, right: 0 }}
               onClick={e => e.stopPropagation()}
             >
@@ -317,7 +317,7 @@ function AdaptiveSheet({
               variants={desktopVariants}
               initial="hidden" animate="visible" exit="exit"
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="fixed left-1/2 top-1/2 z-50 bg-white rounded-2xl shadow-2xl"
+              className="fixed left-1/2 top-1/2 z-[210] bg-white rounded-2xl shadow-2xl"
               style={{
                 width: "min(480px, calc(100vw - 32px))",
                 maxHeight: "min(90vh, 720px)",
@@ -392,13 +392,9 @@ export function BuyerAccountButton({
   const [showOrders, setShowOrders] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
-  if (buyerLoading) {
-    if (variant === "drawer") {
-      return <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />;
-    }
-    return null;
-  }
-
+  // Show login/signup buttons immediately — don't wait for loading to resolve.
+  // This avoids the "blurry skeleton" UX; if the user IS logged in the avatar
+  // replaces these buttons once the session loads (usually <300ms).
   if (!buyerSession) {
     if (variant === "drawer") {
       return (
