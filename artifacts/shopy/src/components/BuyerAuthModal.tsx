@@ -359,14 +359,34 @@ export function BuyerAccountButton({
   onOpenAuth: (tab?: Tab) => void;
   variant?: "icon" | "drawer";
 }) {
-  const { buyerSession, buyerProfile, buyerLoading, signOut } = useBuyerAuth();
+  const { buyerSession, buyerProfile, buyerLoading, refreshProfile, signOut } = useBuyerAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
-  // Show login/signup buttons immediately — don't wait for loading to resolve.
-  // This avoids the "blurry skeleton" UX; if the user IS logged in the avatar
-  // replaces these buttons once the session loads (usually <300ms).
+  // If session is present but profile didn't load (JWT timing issue), trigger a refresh
+  useEffect(() => {
+    if (buyerSession && !buyerProfile && !buyerLoading) {
+      refreshProfile();
+    }
+  }, [buyerSession, buyerProfile, buyerLoading]);
+
+  // While auth state is resolving, show a skeleton so we never flash login buttons
+  // to a user who is actually logged in
+  if (buyerLoading) {
+    if (variant === "drawer") {
+      return (
+        <div className="space-y-2">
+          <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-11 bg-gray-100 rounded-xl animate-pulse opacity-60" />
+        </div>
+      );
+    }
+    return <div className="w-9 h-9 rounded-full bg-gray-100 animate-pulse" />;
+  }
+
+  // Only show login/signup when we are certain there is no session
+  // (buyerLoading already handled above, so !buyerSession here means no session)
   if (!buyerSession) {
     if (variant === "drawer") {
       return (

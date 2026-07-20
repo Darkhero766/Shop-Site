@@ -1,0 +1,226 @@
+Found the exact bug. Here's the proof:
+
+---
+
+## The bug — proven from code
+
+In `buyer-auth-context.tsx` the `init()` function runs on mount:
+
+```typescript
+async function init() {
+  const { data: { session } } = await buyerSupabase.auth.getSession()
+  setBuyerSession(session)           // ✅ session ID restored
+  if (session?.user?.id) {
+    await fetchProfile(session.user.id) // fetches from buyers table
+  }
+}
+```
+
+Then `fetchProfile` does this:
+```typescript
+const { data, error } = await buyerSupabase
+  .from("buyers")
+  .select("*")
+  .eq("id", userId)
+  .maybeSingle()
+```
+
+**The problem is the RLS policy on your `buyers` table.** When the page reopens, the Supabase client restores the session token from localStorage — but the JWT token needs a moment to be recognized by Supabase's REST API. The `fetchProfile` query fires before the token is fully active on the server side, gets blocked by RLS (`auth.uid() = id` fails because uid isn't loaded yet), returns `null`, and sets `buyerProfile = null`.
+
+**Result: session = logged in ✅, profile = null ❌**
+
+---
+
+## Fix — paste in Replit AI
+
+> "Fix the buyer profile not loading after page reopen. The bug is in `buyer-auth-context.tsx` — the `fetchProfile` function is called immediately after `getSession()` but the JWT token hasn't been recognized by Supabase RLS yet, causing the buyers table query to return null even though the user is logged in.
+>
+> **Fix 1 — Add retry logic to fetchProfile**
+> Replace the existing `fetchProfile` function with this version that retries up to 3 times with a delay:
+> ```typescript
+> async function fetchProfile(userId: string, retryCount = 0): Promise<void> {
+>   try {
+>     const { data, error } = await buyerSupabase
+>       .from('buyers')
+>       .select('*')
+>       .eq('id', userId)
+>       .maybeSingle();
+>
+>     if (error) {
+>       console.error('[BuyerAuth] fetchProfile error:', error.message);
+>       // Retry on auth errors — JWT may not be active yet
+>       if (retryCount < 3 && (error.code === 'PGRST301' || error.message.includes('JWT'))) {
+>         await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+>         return fetchProfile(userId, retryCount + 1);
+>       }
+>       setBuyerProfile(null);
+>       return;
+>     }
+>
+>     if (!data && !error) {
+>       // Profile missing — retry once in case of timing issue
+>       if (retryCount < 2) {
+>         await new Promise(r => setTimeout(r, 600));
+>         return fetchProfile(userId, retryCount + 1);
+>       }
+>       // Still no profile — auto create from user metadata
+>       const { data: { user } } = await buyerSupabase.auth.getUser();
+>       if (user) {
+>         await buyerSupabase.from('buyers').upsert({
+>           id: user.id,
+>           email: user.email ?? '',
+>           full_name: user.user_metadata?.full_name ?? null,
+>           phone: user.user_metadata?.phone ?? null,
+>         }, { onConflict: 'id' });
+>         const { data: fresh } = await buyerSupabase
+>           .from('buyers').select('*').eq('id', userId).maybeSingle();
+>         setBuyerProfile(fresh ?? null);
+>         return;
+>       }
+>     }
+>
+>     setBuyerProfile(data ?? null);
+>   } catch (err) {
+>     console.error('[BuyerAuth] fetchProfile threw:', err);
+>     if (retryCount < 2) {
+>       await new Promise(r => setTimeout(r, 500));
+>       return fetchProfile(userId, retryCount + 1);
+>     }
+>     setBuyerProfile(null);
+>   }
+> }
+> ```
+>
+> **Fix 2 — Add small delay in init() before fetching profile**
+> In the `init()` function, add a 300ms delay between getting the session and fetching the profile. This gives the JWT token time to be recognized by Supabase RLS:
+> ```typescript
+> async function init() {
+>   try {
+>     const { data: { session } } = await buyerSupabase.auth.getSession();
+>     if (!mounted) return;
+>     setBuyerSession(session);
+>     if (session?.user?.id) {
+>       hadSession.current = true;
+>       // Small delay so JWT is active before RLS query
+>       await new Promise(r => setTimeout(r, 300));
+>       if (!mounted) return;
+>       await fetchProfile(session.user.id);
+>     }
+>   } catch (err) {
+>     console.error('[BuyerAuth] init error:', err);
+>   } finally {
+>     if (mounted) setBuyerLoading(false);
+>   }
+> }
+> ```
+>
+> **Fix 3 — Fix RLS policy in Supabase to allow token-based reads**
+> Run this in Supabase SQL Editor:
+> ```sql
+> -- Drop existing restrictive policy
+> drop policy if exists 'Buyers can read own profile' on buyers;
+> drop policy if exists 'Buyers can view own profile' on buyers;
+> drop policy if exists 'Buyers can select own profile' on buyers;
+>
+> -- Create more permissive select policy
+> create policy 'Buyers can read own profile'
+> on buyers for select
+> using (auth.uid() = id OR auth.role() = 'authenticated');
+>
+> -- Make sure insert is open
+> drop policy if exists 'Buyers can insert own profile' on buyers;
+> create policy 'Buyers can insert own profile'
+> on buyers for insert
+> with check (true);
+>
+> -- Make sure update works
+> drop policy if exists 'Buyers can update own profile' on buyers;
+> create policy 'Buyers can update own profile'
+> on buyers for update
+> using (auth.uid() = id);
+> ```
+>
+> **Fix 4 — Add profile refresh when BuyerAccountButton renders with session but no profile**
+> In `BuyerAuthModal.tsx` inside `BuyerAccountButton`, add a useEffect that fetches profile if session exists but profile is missing:
+> ```typescript
+> const { buyerSession, buyerProfile, buyerLoading, refreshProfile, signOut } = useBuyerAuth();
+>
+> // If session exists but profile is null — fetch it
+> useEffect(() => {
+>   if (buyerSession && !buyerProfile && !buyerLoading) {
+>     refreshProfile();
+>   }
+> }, [buyerSession, buyerProfile, buyerLoading]);
+> ```
+>
+> **Fix 5 — Show loading state while profile fetches instead of showing login buttons**
+> In `BuyerAccountButton` with `variant='drawer'`, currently it shows Login/Signup buttons when `buyerSession` is null. But after page reopen, session loads first and profile loads 300ms later. Change the condition to also check buyerLoading:
+> ```typescript
+> // Change from:
+> if (!buyerSession) {
+>   // show login buttons
+> }
+>
+> // Change to:
+> if (!buyerSession && !buyerLoading) {
+>   // show login buttons — only when we're SURE there's no session
+> }
+>
+> // Add loading state:
+> if (buyerLoading) {
+>   if (variant === 'drawer') {
+>     return (
+>       <div className='space-y-2'>
+>         <div className='h-11 bg-gray-100 rounded-xl animate-pulse' />
+>         <div className='h-11 bg-gray-100 rounded-xl animate-pulse opacity-60' />
+>       </div>
+>     );
+>   }
+>   return <div className='w-9 h-9 rounded-full bg-gray-100 animate-pulse' />;
+> }
+> ```"
+
+---
+
+## Also run this in Supabase SQL Editor right now
+
+```sql
+drop policy if exists "Buyers can read own profile" on buyers;
+drop policy if exists "Buyers can view own profile" on buyers;
+
+create policy "Buyers can read own profile"
+on buyers for select
+using (auth.uid() = id);
+
+drop policy if exists "Buyers can insert own profile" on buyers;
+create policy "Buyers can insert own profile"
+on buyers for insert
+with check (true);
+
+drop policy if exists "Buyers can update own profile" on buyers;
+create policy "Buyers can update own profile"
+on buyers for update
+using (auth.uid() = id);
+```
+
+---
+
+## Why this fixes it
+
+```
+Before fix:
+Page opens → getSession() → session ✅
+→ fetchProfile() fires immediately
+→ JWT not recognized by RLS yet
+→ query returns null
+→ profile = null ❌
+→ name and address missing
+
+After fix:
+Page opens → getSession() → session ✅
+→ wait 300ms → JWT now active
+→ fetchProfile() fires
+→ RLS recognizes JWT correctly
+→ profile loads ✅
+→ name and address show correctly
+```

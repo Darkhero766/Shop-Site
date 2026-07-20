@@ -38,17 +38,32 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
   const intentionalSignOut = useRef(false);
   const hadSession = useRef(false);
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(userId: string, retryCount = 0): Promise<void> {
     try {
       const { data, error } = await buyerSupabase
         .from("buyers")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
-      if (error) console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
 
-      // First login after email confirmation — no profile exists yet, create one from user metadata
-      if (!data && !error) {
+      if (error) {
+        console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
+        // Retry on JWT/auth errors — token may not be active on the server yet
+        if (retryCount < 3 && (error.code === "PGRST301" || error.message.includes("JWT"))) {
+          await new Promise(r => setTimeout(r, 500 * (retryCount + 1)));
+          return fetchProfile(userId, retryCount + 1);
+        }
+        setBuyerProfile(null);
+        return;
+      }
+
+      if (!data) {
+        // No profile row — retry a couple of times in case of a timing issue
+        if (retryCount < 2) {
+          await new Promise(r => setTimeout(r, 600));
+          return fetchProfile(userId, retryCount + 1);
+        }
+        // Still nothing — auto-create from user metadata (first login after signup)
         const { data: { user } } = await buyerSupabase.auth.getUser();
         if (user) {
           const { error: upsertErr } = await buyerSupabase.from("buyers").upsert({
@@ -58,16 +73,22 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
             phone: user.user_metadata?.phone ?? null,
           }, { onConflict: "id" });
           if (upsertErr) console.error("[BuyerAuth] auto-create profile error:", upsertErr.message);
-          // Re-fetch after creating
-          const { data: fresh } = await buyerSupabase.from("buyers").select("*").eq("id", userId).maybeSingle();
+          const { data: fresh } = await buyerSupabase
+            .from("buyers").select("*").eq("id", userId).maybeSingle();
           setBuyerProfile(fresh ?? null);
           return;
         }
+        setBuyerProfile(null);
+        return;
       }
 
-      setBuyerProfile(data ?? null);
+      setBuyerProfile(data);
     } catch (err) {
       console.error("[BuyerAuth] fetchProfile threw:", err);
+      if (retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500));
+        return fetchProfile(userId, retryCount + 1);
+      }
       setBuyerProfile(null);
     }
   }
@@ -93,6 +114,9 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
         setBuyerSession(session);
         if (session?.user?.id) {
           hadSession.current = true;
+          // Small delay so the JWT is recognised by Supabase RLS before we query
+          await new Promise(r => setTimeout(r, 300));
+          if (!mounted) return;
           await fetchProfile(session.user.id);
         }
       } catch (err) {
