@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, X, User, Loader2 } from "lucide-react";
 import { buyerSupabase } from "@/lib/buyer-supabase";
-import { supabase } from "@/lib/supabase";
 import { useBuyerAuth } from "@/lib/buyer-auth-context";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -170,22 +169,23 @@ function SignupForm({ onSuccess, onSwitchTab }: { onSuccess: () => void; onSwitc
       return;
     }
 
-    if (data.user) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+    setLoading(false);
+
+    if (!data.session) {
+      // Email confirmation required — profile will be created on first login
+      setConfirmationSent(true);
+      return;
+    }
+
+    // Immediately signed in (email confirmation off) — create profile now
+    if (data.user && data.session) {
       const { error: insertErr } = await buyerSupabase.from("buyers").upsert({
         id: data.user.id,
         full_name: form.name,
         phone: form.phone,
         email: form.email,
-      });
+      }, { onConflict: "id" });
       if (insertErr) console.error("[BuyerAuth] profile insert error:", insertErr.message);
-    }
-
-    setLoading(false);
-
-    if (!data.session) {
-      setConfirmationSent(true);
-      return;
     }
 
     await refreshProfile();
@@ -514,7 +514,7 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (!buyerSession) { setLoading(false); return; }
-    supabase
+    buyerSupabase
       .from("orders")
       .select("*, products(name, images)")
       .eq("buyer_email", buyerSession.user.email)
@@ -529,14 +529,14 @@ function BuyerOrdersSheet({ onClose }: { onClose: () => void }) {
       return;
     }
     setReviewLoading(true);
-    supabase.from("reviews").select("*").eq("order_id", selected.id).maybeSingle()
+    buyerSupabase.from("reviews").select("*").eq("order_id", selected.id).maybeSingle()
       .then(({ data }) => { setExistingReview(data ?? null); setReviewLoading(false); });
   }, [selected?.id]);
 
   const submitReview = async () => {
     if (!selected || rating === 0) return;
     setSubmitting(true);
-    const { error } = await supabase.from("reviews").insert({
+    const { error } = await buyerSupabase.from("reviews").insert({
       shop_id: selected.shop_id,
       order_id: selected.id,
       rating,

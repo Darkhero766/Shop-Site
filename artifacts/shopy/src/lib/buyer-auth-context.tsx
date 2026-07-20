@@ -46,6 +46,25 @@ export function BuyerAuthProvider({ children }: { children: ReactNode }) {
         .eq("id", userId)
         .maybeSingle();
       if (error) console.error("[BuyerAuth] fetchProfile error:", error.message, error.code);
+
+      // First login after email confirmation — no profile exists yet, create one from user metadata
+      if (!data && !error) {
+        const { data: { user } } = await buyerSupabase.auth.getUser();
+        if (user) {
+          const { error: upsertErr } = await buyerSupabase.from("buyers").upsert({
+            id: user.id,
+            email: user.email ?? "",
+            full_name: user.user_metadata?.full_name ?? null,
+            phone: user.user_metadata?.phone ?? null,
+          }, { onConflict: "id" });
+          if (upsertErr) console.error("[BuyerAuth] auto-create profile error:", upsertErr.message);
+          // Re-fetch after creating
+          const { data: fresh } = await buyerSupabase.from("buyers").select("*").eq("id", userId).maybeSingle();
+          setBuyerProfile(fresh ?? null);
+          return;
+        }
+      }
+
       setBuyerProfile(data ?? null);
     } catch (err) {
       console.error("[BuyerAuth] fetchProfile threw:", err);
