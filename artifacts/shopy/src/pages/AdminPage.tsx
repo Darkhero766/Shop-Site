@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import {
   ShieldAlert, CheckCircle, XCircle, Edit2, Calendar, PauseCircle,
   TrendingUp, IndianRupee, Users, AlertTriangle, Clock, RefreshCw,
-  Globe, Eye, Home, Compass, Zap,
+  Globe, Eye, Home, Compass, Zap, BarChart2, Package, ShoppingBag,
+  ArrowUpDown, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,15 @@ function StatusBadge({ status }: { status: Shop["status"] }) {
 
 type PageVisitStats = { total: number; today: number };
 
+type ShopPerf = {
+  shopId: string;
+  products: number;
+  totalOrders: number;
+  confirmedOrders: number;
+  gmv: number; // sum of confirmed+completed order amounts
+  visits: number;
+};
+
 export default function AdminPage() {
   const [, setLocation] = useLocation();
   const { session, loading: authLoading } = useAuth();
@@ -71,6 +81,8 @@ export default function AdminPage() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [tableSearch, setTableSearch] = useState("");
+  const [shopPerf, setShopPerf] = useState<Record<string, ShopPerf>>({});
+  const [perfSort, setPerfSort] = useState<"gmv" | "orders" | "visits" | "products">("gmv");
 
   // Page visit stats
   const [homeStats, setHomeStats] = useState<PageVisitStats>({ total: 0, today: 0 });
@@ -101,6 +113,9 @@ export default function AdminPage() {
         homeToday,
         exploreTotal,
         exploreToday,
+        { data: allOrders },
+        { data: allProducts },
+        { data: allVisits },
       ] = await Promise.all([
         supabase.from("shops").select("*").order("created_at", { ascending: false }),
         supabase.from("orders").select("*", { count: "exact", head: true }),
@@ -109,6 +124,9 @@ export default function AdminPage() {
         supabase.from("page_visits").select("id", { count: "exact", head: true }).eq("page", "home").gte("visited_at", todayStart.toISOString()),
         supabase.from("page_visits").select("id", { count: "exact", head: true }).eq("page", "explore"),
         supabase.from("page_visits").select("id", { count: "exact", head: true }).eq("page", "explore").gte("visited_at", todayStart.toISOString()),
+        supabase.from("orders").select("shop_id, amount, status"),
+        supabase.from("products").select("shop_id"),
+        supabase.from("shop_visits").select("shop_id").limit(5000),
       ]);
 
       if (!error && data) setShops(data as Shop[]);
@@ -116,6 +134,24 @@ export default function AdminPage() {
       setTotalProducts(productCount ?? 0);
       setHomeStats({ total: homeTotal.count ?? 0, today: homeToday.count ?? 0 });
       setExploreStats({ total: exploreTotal.count ?? 0, today: exploreToday.count ?? 0 });
+
+      // Aggregate per-shop performance
+      const perf: Record<string, ShopPerf> = {};
+      const ensureShop = (id: string) => {
+        if (!perf[id]) perf[id] = { shopId: id, products: 0, totalOrders: 0, confirmedOrders: 0, gmv: 0, visits: 0 };
+      };
+      (allProducts ?? []).forEach((p: { shop_id: string }) => { ensureShop(p.shop_id); perf[p.shop_id].products++; });
+      (allOrders ?? []).forEach((o: { shop_id: string; amount: number; status: string }) => {
+        ensureShop(o.shop_id);
+        perf[o.shop_id].totalOrders++;
+        if (o.status === "confirmed" || o.status === "completed") {
+          perf[o.shop_id].confirmedOrders++;
+          perf[o.shop_id].gmv += o.amount ?? 0;
+        }
+      });
+      (allVisits ?? []).forEach((v: { shop_id: string }) => { ensureShop(v.shop_id); perf[v.shop_id].visits++; });
+      setShopPerf(perf);
+
       setIsLoading(false);
     }
     loadAll();
@@ -199,6 +235,131 @@ export default function AdminPage() {
     }
     return list;
   }, [shops, planFilter, tableSearch]);
+
+  const PerformanceTable = ({
+    shops: shopList,
+    perfMap,
+    sort,
+    onSort,
+  }: {
+    shops: Shop[];
+    perfMap: Record<string, ShopPerf>;
+    sort: "gmv" | "orders" | "visits" | "products";
+    onSort: (s: "gmv" | "orders" | "visits" | "products") => void;
+  }) => {
+    const maxGmv    = Math.max(1, ...shopList.map(s => perfMap[s.id]?.gmv ?? 0));
+    const maxOrders = Math.max(1, ...shopList.map(s => perfMap[s.id]?.totalOrders ?? 0));
+    const maxVisits = Math.max(1, ...shopList.map(s => perfMap[s.id]?.visits ?? 0));
+
+    const sorted = [...shopList].sort((a, b) => {
+      const pa = perfMap[a.id] ?? { gmv: 0, totalOrders: 0, visits: 0, products: 0 };
+      const pb = perfMap[b.id] ?? { gmv: 0, totalOrders: 0, visits: 0, products: 0 };
+      if (sort === "gmv")      return pb.gmv - pa.gmv;
+      if (sort === "orders")   return pb.totalOrders - pa.totalOrders;
+      if (sort === "visits")   return pb.visits - pa.visits;
+      return pb.products - pa.products;
+    });
+
+    const SortBtn = ({ field, label }: { field: typeof sort; label: string }) => (
+      <button
+        onClick={() => onSort(field)}
+        className={`flex items-center gap-1 text-xs font-semibold whitespace-nowrap transition-colors ${sort === field ? "text-violet-600" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        {label}
+        <ArrowUpDown className={`w-3 h-3 ${sort === field ? "text-violet-500" : ""}`} />
+      </button>
+    );
+
+    return (
+      <div className="overflow-x-auto">
+        <Table className="min-w-[700px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Store</TableHead>
+              <TableHead><SortBtn field="products" label="Products" /></TableHead>
+              <TableHead><SortBtn field="orders" label="Orders" /></TableHead>
+              <TableHead>Confirmed</TableHead>
+              <TableHead><SortBtn field="gmv" label="GMV (₹)" /></TableHead>
+              <TableHead><SortBtn field="visits" label="Shop Visits" /></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No shops yet.</TableCell></TableRow>
+            ) : sorted.map(shop => {
+              const p = perfMap[shop.id] ?? { shopId: shop.id, products: 0, totalOrders: 0, confirmedOrders: 0, gmv: 0, visits: 0 };
+              const gmvPct    = Math.round((p.gmv / maxGmv) * 100);
+              const orderPct  = Math.round((p.totalOrders / maxOrders) * 100);
+              const visitPct  = Math.round((p.visits / maxVisits) * 100);
+              return (
+                <TableRow key={shop.id}>
+                  <TableCell>
+                    <div className="font-medium text-sm whitespace-nowrap">{shop.shop_name}</div>
+                    <a
+                      href={`https://${shop.subdomain}.shopgram.in`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-violet-600 hover:underline mt-0.5"
+                    >
+                      {shop.subdomain}.shopgram.in
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Package className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                      <span className="font-semibold text-sm">{p.products}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1 min-w-[80px]">
+                      <div className="flex items-center gap-1.5">
+                        <ShoppingBag className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span className="font-semibold text-sm">{p.totalOrders}</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${orderPct}%` }} />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm font-medium text-emerald-700">{p.confirmedOrders}</span>
+                    {p.totalOrders > 0 && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({Math.round((p.confirmedOrders / p.totalOrders) * 100)}%)
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1 min-w-[90px]">
+                      <div className="flex items-center gap-1.5">
+                        <IndianRupee className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-semibold text-sm">{p.gmv.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${gmvPct}%` }} />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1 min-w-[80px]">
+                      <div className="flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                        <span className="font-semibold text-sm">{p.visits.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-violet-400 rounded-full transition-all" style={{ width: `${visitPct}%` }} />
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
 
   if (isLoading) return (
     <div className="flex h-screen items-center justify-center gap-3 text-muted-foreground">
@@ -573,10 +734,14 @@ export default function AdminPage() {
                   All
                   <span className="ml-1.5 text-[10px] font-bold text-muted-foreground">{displayedShops.length}</span>
                 </TabsTrigger>
+                <TabsTrigger value="performance" className="rounded-lg text-xs px-3 h-8 gap-1.5">
+                  <BarChart2 className="w-3 h-3" />
+                  Performance
+                </TabsTrigger>
               </TabsList>
             </div>
 
-            {/* Plan filter chips */}
+            {/* Plan filter chips — hidden on performance tab */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
               {(["all", "trial", "pro", "expired"] as const).map(f => (
                 <Button key={f} size="sm" variant={planFilter === f ? "default" : "outline"}
@@ -595,6 +760,11 @@ export default function AdminPage() {
             <TabsContent value="paused"    className="m-0"><ShopTable data={displayedShops.filter(s => s.status === "paused")} /></TabsContent>
             <TabsContent value="suspended" className="m-0"><ShopTable data={displayedShops.filter(s => s.status === "suspended")} /></TabsContent>
             <TabsContent value="all"       className="m-0"><ShopTable data={displayedShops} /></TabsContent>
+
+            {/* ── Performance Tab ── */}
+            <TabsContent value="performance" className="m-0">
+              <PerformanceTable shops={shops} perfMap={shopPerf} sort={perfSort} onSort={setPerfSort} />
+            </TabsContent>
           </Tabs>
         </div>
       </main>
